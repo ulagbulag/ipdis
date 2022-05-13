@@ -2,7 +2,7 @@ use ipis::core::chrono::NaiveDateTime;
 
 use crate::schema::dyn_paths;
 
-#[derive(Queryable)]
+#[derive(Debug, Queryable)]
 pub struct DynPath {
     pub id: i32,
     pub account: String,

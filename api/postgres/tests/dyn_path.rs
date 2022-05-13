@@ -33,6 +33,10 @@ async fn test_create() {
     // put the path in IPDIS
     client.put_dyn(&dyn_path).await.unwrap();
 
+    // get the path
+    let dyn_path = dyn_path.remove_path();
+    dbg!(client.get_dyn_unsafe(&dyn_path).await.unwrap());
+
     // cleanup test data
-    assert!(client.delete_dyn_all(&dyn_path.kind).await.unwrap() > 0);
+    assert!(client.delete_dyn_all_unsafe(&dyn_path.kind).await.unwrap() > 0);
 }

@@ -1,4 +1,4 @@
-use diesel::{Connection, ExpressionMethods, PgConnection, RunQueryDsl};
+use diesel::{Connection, ExpressionMethods, PgConnection, QueryDsl, RunQueryDsl};
 use ipiis_common::Ipiis;
 use ipis::{
     core::{
@@ -70,6 +70,20 @@ impl<IpiisClient> IpdisClientInner<IpiisClient>
 where
     IpiisClient: AsRef<::ipdis_common::ipiis_api::client::IpiisClient>,
 {
+    pub async fn get_dyn_unsafe<Path>(
+        &self,
+        path: &DynPath<Path>,
+    ) -> Result<Vec<crate::models::dyn_paths::DynPath>> {
+        let account = self.ipsis.as_ref().account_me().account_ref();
+
+        crate::schema::dyn_paths::table
+            .filter(crate::schema::dyn_paths::account.eq(account.to_string()))
+            .filter(crate::schema::dyn_paths::kind.eq(path.kind.to_string()))
+            .filter(crate::schema::dyn_paths::word.eq(path.word.to_string()))
+            .get_results(&self.connection)
+            .map_err(Into::into)
+    }
+
     pub async fn put_dyn(&self, path: &DynPath<Path>) -> Result<crate::models::dyn_paths::DynPath> {
         let path = self
             .ipsis
@@ -93,7 +107,7 @@ where
             .map_err(Into::into)
     }
 
-    pub async fn delete_dyn_all(&self, kind: &Hash) -> Result<usize> {
+    pub async fn delete_dyn_all_unsafe(&self, kind: &Hash) -> Result<usize> {
         ::diesel::delete(crate::schema::dyn_paths::table)
             .filter(crate::schema::dyn_paths::kind.eq(kind.to_string()))
             .execute(&self.connection)
