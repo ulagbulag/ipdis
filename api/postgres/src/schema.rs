@@ -3,6 +3,6 @@ table! {
         id -> Int4,
         name -> Varchar,
         path -> Varchar,
-        size -> Int8,
+        len -> Int8,
     }
 }
