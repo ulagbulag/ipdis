@@ -1,1 +1,1 @@
-pub mod dyn_path;
+pub mod dyn_paths;

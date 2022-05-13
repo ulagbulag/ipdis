@@ -1,7 +1,12 @@
-use diesel::{Connection, PgConnection};
+use diesel::{Connection, ExpressionMethods, PgConnection, RunQueryDsl};
+use ipiis_common::Ipiis;
 use ipis::{
-    core::anyhow::{bail, Result},
+    core::{
+        anyhow::{bail, Result},
+        value::hash::Hash,
+    },
     env::{self, Infer},
+    path::{DynPath, Path},
 };
 use ipsis_api::client::IpsisClientInner;
 
@@ -58,5 +63,40 @@ impl<'a> Infer<'a> for IpdisClient {
 
     fn genesis((): <Self as Infer<'a>>::GenesisArgs) -> Result<<Self as Infer<'a>>::GenesisResult> {
         Self::try_infer()
+    }
+}
+
+impl<IpiisClient> IpdisClientInner<IpiisClient>
+where
+    IpiisClient: AsRef<::ipdis_common::ipiis_api::client::IpiisClient>,
+{
+    pub async fn put_dyn(&self, path: &DynPath<Path>) -> Result<crate::models::dyn_paths::DynPath> {
+        let path = self
+            .ipsis
+            .as_ref()
+            .sign(self.ipsis.as_ref().account_me().account_ref(), *path)?;
+
+        let record = crate::models::dyn_paths::NewDynPath {
+            account: path.guarantee.account.to_string(),
+            signature: path.guarantee.signature.to_string(),
+            created_date: path.created_date.naive_utc(),
+            expiration_date: path.expiration_date.map(|e| e.naive_utc()),
+            kind: path.data.kind.to_string(),
+            word: path.data.word.to_string(),
+            path: path.data.path.value.to_string(),
+            len: path.data.path.len.try_into()?,
+        };
+
+        ::diesel::insert_into(crate::schema::dyn_paths::table)
+            .values(&record)
+            .get_result(&self.connection)
+            .map_err(Into::into)
+    }
+
+    pub async fn delete_dyn_all(&self, kind: &Hash) -> Result<usize> {
+        ::diesel::delete(crate::schema::dyn_paths::table)
+            .filter(crate::schema::dyn_paths::kind.eq(kind.to_string()))
+            .execute(&self.connection)
+            .map_err(Into::into)
     }
 }

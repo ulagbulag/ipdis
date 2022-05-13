@@ -1,0 +1,13 @@
+-- Your SQL goes here
+
+-- ED25519 PublicKey - base58 = 32 bytes
+CREATE DOMAIN ACCOUNT as VARCHAR(44) NOT NULL
+  CHECK (CHAR_LENGTH(value) = 44);
+
+-- ED25519 Signature - base58 = 32 bytes
+CREATE DOMAIN SIGNATURE as VARCHAR(88) NOT NULL
+  CHECK (CHAR_LENGTH(value) = 88);
+
+-- SHA256 - base58 = 32 bytes
+CREATE DOMAIN SHA256HASH as VARCHAR(44) NOT NULL
+  CHECK (CHAR_LENGTH(value) = 44);

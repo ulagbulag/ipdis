@@ -18,6 +18,7 @@ ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
     "derive",
 ] }
 ipdis-common = { path = "../../common" }
+ipiis-common = { git = "https://github.com/ulagbulag-village/ipiis.git" }
 ipsis-api = { git = "https://github.com/ulagbulag-village/ipsis.git" }
 
-diesel = { version = "1.4", features = ["postgres"] }
+diesel = { version = "1.4", features = ["chrono", "postgres"] }

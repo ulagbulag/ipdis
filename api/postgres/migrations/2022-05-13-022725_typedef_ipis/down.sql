@@ -1,0 +1,4 @@
+-- This file should undo anything in `up.sql`
+DROP DOMAIN ACCOUNT;
+DROP DOMAIN SIGNATURE;
+DROP DOMAIN SHA256HASH;

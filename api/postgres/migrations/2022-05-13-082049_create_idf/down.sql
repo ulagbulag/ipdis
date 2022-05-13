@@ -1,2 +1,3 @@
 -- This file should undo anything in `up.sql`
-DROP TABLE dyn_paths;
+DROP TABLE idf_words;
+DROP TABLE idf_logs;
