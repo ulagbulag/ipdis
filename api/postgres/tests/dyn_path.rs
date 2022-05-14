@@ -38,5 +38,5 @@ async fn test_create() {
     dbg!(client.get_dyn_unsafe(&dyn_path).await.unwrap());
 
     // cleanup test data
-    assert!(client.delete_dyn_all_unsafe(&dyn_path.kind).await.unwrap() > 0);
+    client.delete_dyn_all_unsafe(&dyn_path.kind).await.unwrap();
 }

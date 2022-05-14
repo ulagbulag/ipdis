@@ -2,11 +2,14 @@ use diesel::{Connection, ExpressionMethods, PgConnection, QueryDsl, RunQueryDsl}
 use ipiis_common::Ipiis;
 use ipis::{
     core::{
+        account::{AccountRef, GuaranteeSigned, Identity},
         anyhow::{bail, Result},
-        value::hash::Hash,
+        metadata::Metadata,
+        value::{chrono::NaiveDateTime, hash::Hash, uuid::Uuid},
     },
     env::{self, Infer},
     path::{DynPath, Path},
+    tokio::sync::Mutex,
 };
 use ipsis_api::client::IpsisClientInner;
 
@@ -14,7 +17,7 @@ pub type IpdisClient = IpdisClientInner<::ipdis_common::ipiis_api::client::Ipiis
 
 pub struct IpdisClientInner<IpiisClient> {
     pub ipsis: IpsisClientInner<IpiisClient>,
-    connection: PgConnection,
+    connection: Mutex<PgConnection>,
 }
 
 impl<IpiisClient> AsRef<::ipdis_common::ipiis_api::client::IpiisClient>
@@ -57,7 +60,8 @@ impl<'a> Infer<'a> for IpdisClient {
         Ok(Self {
             ipsis: IpsisClientInner::try_infer()?,
             connection: PgConnection::establish(&database_url)
-                .or_else(|_| bail!("Error connecting to {}", database_url))?,
+                .or_else(|_| bail!("Error connecting to {}", database_url))?
+                .into(),
         })
     }
 
@@ -73,25 +77,52 @@ where
     pub async fn get_dyn_unsafe<Path>(
         &self,
         path: &DynPath<Path>,
-    ) -> Result<Vec<crate::models::dyn_paths::DynPath>> {
+    ) -> Result<Vec<GuaranteeSigned<DynPath<::ipis::path::Path>>>> {
         let account = self.ipsis.as_ref().account_me().account_ref();
 
         crate::schema::dyn_paths::table
-            .filter(crate::schema::dyn_paths::account.eq(account.to_string()))
+            .filter(crate::schema::dyn_paths::guarantee.eq(account.to_string()))
             .filter(crate::schema::dyn_paths::kind.eq(path.kind.to_string()))
             .filter(crate::schema::dyn_paths::word.eq(path.word.to_string()))
-            .get_results(&self.connection)
-            .map_err(Into::into)
+            .get_results(&mut *self.connection.lock().await)?
+            .into_iter()
+            .map(|row: crate::models::dyn_paths::DynPath| {
+                Ok(GuaranteeSigned {
+                    guarantee: Identity {
+                        account: AccountRef {
+                            public_key: row.guarantee.parse()?,
+                        },
+                        signature: row.signature.parse()?,
+                    },
+                    data: Metadata {
+                        nonce: Uuid(row.nonce).into(),
+                        created_date: NaiveDateTime(row.created_date).to_utc(),
+                        expiration_date: row.expiration_date.map(|e| NaiveDateTime(e).to_utc()),
+                        guarantor: row.guarantor.parse()?,
+                        data: DynPath {
+                            kind: row.kind.parse()?,
+                            word: row.word.parse()?,
+                            path: ::ipis::path::Path {
+                                value: row.path.parse()?,
+                                len: row.len.try_into()?,
+                            },
+                        },
+                    },
+                })
+            })
+            .collect()
     }
 
-    pub async fn put_dyn(&self, path: &DynPath<Path>) -> Result<crate::models::dyn_paths::DynPath> {
+    pub async fn put_dyn(&self, path: &DynPath<Path>) -> Result<()> {
         let path = self
             .ipsis
             .as_ref()
             .sign(self.ipsis.as_ref().account_me().account_ref(), *path)?;
 
         let record = crate::models::dyn_paths::NewDynPath {
-            account: path.guarantee.account.to_string(),
+            nonce: path.nonce.0 .0,
+            guarantee: path.guarantee.account.to_string(),
+            guarantor: path.guarantor.to_string(),
             signature: path.guarantee.signature.to_string(),
             created_date: path.created_date.naive_utc(),
             expiration_date: path.expiration_date.map(|e| e.naive_utc()),
@@ -103,14 +134,16 @@ where
 
         ::diesel::insert_into(crate::schema::dyn_paths::table)
             .values(&record)
-            .get_result(&self.connection)
+            .execute(&mut *self.connection.lock().await)
+            .map(|_| ())
             .map_err(Into::into)
     }
 
-    pub async fn delete_dyn_all_unsafe(&self, kind: &Hash) -> Result<usize> {
+    pub async fn delete_dyn_all_unsafe(&self, kind: &Hash) -> Result<()> {
         ::diesel::delete(crate::schema::dyn_paths::table)
             .filter(crate::schema::dyn_paths::kind.eq(kind.to_string()))
-            .execute(&self.connection)
+            .execute(&mut *self.connection.lock().await)
+            .map(|_| ())
             .map_err(Into::into)
     }
 }

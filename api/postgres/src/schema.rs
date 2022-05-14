@@ -1,7 +1,9 @@
 table! {
     dyn_paths (id) {
         id -> Int4,
-        account -> Varchar,
+        nonce -> Uuid,
+        guarantee -> Varchar,
+        guarantor -> Varchar,
         signature -> Varchar,
         created_date -> Timestamp,
         expiration_date -> Nullable<Timestamp>,
@@ -15,7 +17,9 @@ table! {
 table! {
     idf_logs (id) {
         id -> Int4,
-        account -> Varchar,
+        nonce -> Uuid,
+        guarantee -> Varchar,
+        guarantor -> Varchar,
         signature -> Varchar,
         created_date -> Timestamp,
         expiration_date -> Nullable<Timestamp>,

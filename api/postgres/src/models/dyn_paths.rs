@@ -1,11 +1,13 @@
-use ipis::core::chrono::NaiveDateTime;
+use ipis::core::{chrono::NaiveDateTime, uuid::Uuid};
 
 use crate::schema::dyn_paths;
 
 #[derive(Debug, Queryable)]
 pub struct DynPath {
     pub id: i32,
-    pub account: String,
+    pub nonce: Uuid,
+    pub guarantee: String,
+    pub guarantor: String,
     pub signature: String,
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
@@ -18,7 +20,9 @@ pub struct DynPath {
 #[derive(Insertable)]
 #[table_name = "dyn_paths"]
 pub struct NewDynPath {
-    pub account: String,
+    pub nonce: Uuid,
+    pub guarantee: String,
+    pub guarantor: String,
     pub signature: String,
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
