@@ -1,7 +1,7 @@
 use ipis::core::{chrono::NaiveDateTime, uuid::Uuid};
 
 #[derive(Debug, Queryable)]
-pub struct DynPath {
+pub struct AccountsGuarantee {
     pub id: i32,
     // -- METADATA BEGIN --
     pub nonce: Uuid,
@@ -12,15 +12,11 @@ pub struct DynPath {
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
     // -- METADATA END --
-    pub kind: String,
-    pub word: String,
-    pub path: String,
-    pub len: i64,
 }
 
 #[derive(Insertable)]
-#[diesel(table_name = crate::schema::dyn_paths)]
-pub struct NewDynPath {
+#[diesel(table_name = crate::schema::accounts_guarantees)]
+pub struct NewAccountsGuarantee {
     // -- METADATA BEGIN --
     pub nonce: Uuid,
     pub guarantee: String,
@@ -30,8 +26,4 @@ pub struct NewDynPath {
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
     // -- METADATA END --
-    pub kind: String,
-    pub word: String,
-    pub path: String,
-    pub len: i64,
 }
