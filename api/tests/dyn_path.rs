@@ -1,6 +1,6 @@
 use ipdis_api::client::IpdisClient;
-use ipdis_common::{ipiis_api::client::IpiisClient, Ipdis};
-use ipiis_common::Ipiis;
+use ipdis_common::Ipdis;
+use ipiis_api::{client::IpiisClient, common::Ipiis};
 use ipis::{
     core::value::hash::Hash,
     env::Infer,

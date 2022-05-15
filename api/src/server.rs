@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use ipdis_common::{
-    ipiis_api::{client::IpiisClient, server::IpiisServer},
-    Ipdis, Request, RequestType, Response,
-};
+use ipdis_common::{Ipdis, Request, RequestType, Response};
+use ipiis_api::server::IpiisServer;
 use ipis::{core::anyhow::Result, env::Infer, pin::Pinned};
 
 use crate::client::IpdisClientInner;
@@ -12,21 +10,11 @@ pub struct IpdisServer {
     client: Arc<IpdisClientInner<IpiisServer>>,
 }
 
-impl AsRef<IpdisClientInner<IpiisServer>> for IpdisServer {
-    fn as_ref(&self) -> &IpdisClientInner<IpiisServer> {
+impl ::core::ops::Deref for IpdisServer {
+    type Target = IpdisClientInner<IpiisServer>;
+
+    fn deref(&self) -> &Self::Target {
         &self.client
-    }
-}
-
-impl AsRef<IpiisClient> for IpdisServer {
-    fn as_ref(&self) -> &IpiisClient {
-        self.client.as_ref().as_ref()
-    }
-}
-
-impl AsRef<IpiisServer> for IpdisServer {
-    fn as_ref(&self) -> &IpiisServer {
-        self.client.as_ref().as_ref()
     }
 }
 
@@ -53,7 +41,7 @@ impl IpdisServer {
     pub async fn run(&self) {
         let client = self.client.clone();
 
-        let runtime: &IpiisServer = self.client.as_ref().as_ref();
+        let runtime: &IpiisServer = (*self.client).as_ref();
         runtime.run(client, Self::handle).await
     }
 

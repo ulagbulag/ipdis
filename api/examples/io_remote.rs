@@ -1,9 +1,6 @@
 use ipdis_api::{client::IpdisClient, server::IpdisServer};
-use ipdis_common::{
-    ipiis_api::{client::IpiisClient, server::IpiisServer},
-    Ipdis,
-};
-use ipiis_common::Ipiis;
+use ipdis_common::Ipdis;
+use ipiis_api::{client::IpiisClient, common::Ipiis, server::IpiisServer};
 use ipis::{
     core::{
         anyhow::Result,

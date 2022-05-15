@@ -1,12 +1,7 @@
 #![feature(more_qualified_paths)]
 
-pub extern crate ipiis_api;
-
 use bytecheck::CheckBytes;
-use ipiis_api::{
-    client::IpiisClient,
-    common::{external_call, opcode::Opcode, Ipiis},
-};
+use ipiis_common::{external_call, Ipiis};
 use ipis::{
     async_trait::async_trait,
     core::{
@@ -153,7 +148,11 @@ pub trait Ipdis {
 }
 
 #[async_trait]
-impl Ipdis for IpiisClient {
+impl<IpiisClient> Ipdis for IpiisClient
+where
+    IpiisClient: Ipiis + Send + Sync,
+    <IpiisClient as Ipiis>::Opcode: Default,
+{
     async fn ensure_registered(
         &self,
         guarantee: &AccountRef,
@@ -179,7 +178,7 @@ impl Ipdis for IpiisClient {
         // external call
         let () = external_call!(
             call: self
-                .call_permanent_deserialized(Opcode::TEXT, &target, req)
+                .call_permanent_deserialized(Default::default(), &target, req)
                 .await?,
             response: Response => GuaranteePut,
         );
@@ -207,7 +206,7 @@ impl Ipdis for IpiisClient {
         // external call
         let (path,) = external_call!(
             call: self
-                .call_permanent_deserialized(Opcode::TEXT, &target, req)
+                .call_permanent_deserialized(Default::default(), &target, req)
                 .await?,
             response: Response => DynPathGet,
             items: { path },
@@ -229,7 +228,7 @@ impl Ipdis for IpiisClient {
         // external call
         let () = external_call!(
             call: self
-                .call_permanent_deserialized(Opcode::TEXT, &target, req)
+                .call_permanent_deserialized(Default::default(), &target, req)
                 .await?,
             response: Response => DynPathPut,
         );
@@ -250,7 +249,7 @@ impl Ipdis for IpiisClient {
         // external call
         let (count,) = external_call!(
             call: self
-                .call_permanent_deserialized(Opcode::TEXT, &target, req)
+                .call_permanent_deserialized(Default::default(), &target, req)
                 .await?,
             response: Response => IdfCountGet,
             items: { count },
@@ -276,7 +275,7 @@ impl Ipdis for IpiisClient {
         // external call
         let (count,) = external_call!(
             call: self
-                .call_permanent_deserialized(Opcode::TEXT, &target, req)
+                .call_permanent_deserialized(Default::default(), &target, req)
                 .await?,
             response: Response => IdfCountGetWithGuarantee,
             items: { count },
@@ -302,7 +301,7 @@ impl Ipdis for IpiisClient {
         // external call
         let (logs,) = external_call!(
             call: self
-                .call_permanent_deserialized(Opcode::TEXT, &target, req)
+                .call_permanent_deserialized(Default::default(), &target, req)
                 .await?,
             response: Response => IdfLogGetMany,
             items: { logs },
@@ -324,7 +323,7 @@ impl Ipdis for IpiisClient {
         // external call
         let () = external_call!(
             call: self
-                .call_permanent_deserialized(Opcode::TEXT, &target, req)
+                .call_permanent_deserialized(Default::default(), &target, req)
                 .await?,
             response: Response => IdfLogPut,
         );

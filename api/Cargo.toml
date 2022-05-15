@@ -21,6 +21,7 @@ postgres = ["ipdis-api-postgres"]
 ipis = { git = "https://github.com/ulagbulag-village/ipis" }
 ipdis-api-postgres = { path = "./postgres", optional = true }
 ipdis-common = { path = "../common" }
+ipiis-api = { git = "https://github.com/ulagbulag-village/ipiis.git" }
 
 [dev-dependencies]
 ipiis-common = { git = "https://github.com/ulagbulag-village/ipiis.git" }
