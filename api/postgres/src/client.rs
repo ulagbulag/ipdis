@@ -80,14 +80,14 @@ impl<IpiisClient> IpdisClientInner<IpiisClient> {
 #[async_trait]
 impl<IpiisClient> Ipdis for IpdisClientInner<IpiisClient>
 where
-    IpiisClient: AsRef<::ipiis_api::client::IpiisClient> + Send + Sync,
+    IpiisClient: Ipiis + Send + Sync,
 {
     async fn ensure_registered(
         &self,
         guarantee: &AccountRef,
         guarantor: &AccountRef,
     ) -> Result<()> {
-        let guarantor_now = self.ipiis.as_ref().account_me().account_ref();
+        let guarantor_now = self.ipiis.account_me().account_ref();
         if guarantor != &guarantor_now {
             bail!("failed to authenticate the guarantor")
         }
@@ -118,7 +118,7 @@ where
     }
 
     async fn add_guarantee_unchecked(&self, guarantee: &GuaranteeSigned<AccountRef>) -> Result<()> {
-        let guarantee = self.ipiis.as_ref().sign_as_guarantor(*guarantee)?;
+        let guarantee = self.ipiis.sign_as_guarantor(*guarantee)?;
 
         let record = crate::models::accounts_guarantees::NewAccountsGuarantee {
             nonce: guarantee.nonce.0 .0,
@@ -145,7 +145,7 @@ where
     where
         Path: Copy + Send + Sync,
     {
-        let guarantor = self.ipiis.as_ref().account_me().account_ref();
+        let guarantor = self.ipiis.account_me().account_ref();
         let guarantee = guarantee.unwrap_or(&guarantor);
 
         let mut records: Vec<crate::models::dyn_paths::DynPath> = crate::schema::dyn_paths::table
@@ -197,7 +197,7 @@ where
     }
 
     async fn put_dyn_path_unchecked(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()> {
-        let path = self.ipiis.as_ref().sign_as_guarantor(*path)?;
+        let path = self.ipiis.sign_as_guarantor(*path)?;
 
         let record = crate::models::dyn_paths::NewDynPath {
             nonce: path.nonce.0 .0,
@@ -258,7 +258,7 @@ where
         guarantee: Option<&AccountRef>,
         query: &GetIdfWords,
     ) -> Result<Vec<GuarantorSigned<WordHash>>> {
-        let guarantor = self.ipiis.as_ref().account_me().account_ref();
+        let guarantor = self.ipiis.account_me().account_ref();
         let guarantee = guarantee.unwrap_or(&guarantor);
 
         let records: Vec<crate::models::idf::IdfLog> = crate::schema::idf_logs::table
@@ -314,7 +314,7 @@ where
     }
 
     async fn put_idf_log_unchecked(&self, word: &GuaranteeSigned<WordHash>) -> Result<()> {
-        let word = self.ipiis.as_ref().sign_as_guarantor(*word)?;
+        let word = self.ipiis.sign_as_guarantor(*word)?;
 
         let record = crate::models::idf::NewIdfLog {
             nonce: word.nonce.0 .0,
@@ -404,7 +404,7 @@ where
 
 impl<IpiisClient> IpdisClientInner<IpiisClient>
 where
-    IpiisClient: AsRef<::ipiis_api::client::IpiisClient>,
+    IpiisClient: Ipiis + Send + Sync,
 {
     pub async fn delete_guarantee_unchecked(&self, guarantee: &AccountRef) -> Result<()> {
         ::diesel::delete(crate::schema::accounts_guarantees::table)
