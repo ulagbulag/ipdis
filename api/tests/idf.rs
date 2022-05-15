@@ -1,4 +1,4 @@
-use ipdis_api_postgres::client::IpdisClient;
+use ipdis_api::client::IpdisClient;
 use ipdis_common::{ipiis_api::client::IpiisClient, Ipdis};
 use ipiis_common::Ipiis;
 use ipis::{
@@ -31,28 +31,28 @@ async fn test_create() {
         let word = ipiis.sign(account, word).unwrap();
 
         // put the word in IPDIS
-        client.put_idf_log_unsafe(&word).await.unwrap();
+        client.put_idf_log_unchecked(&word).await.unwrap();
     }
 
     // get the word log
     let word_from_ipdis = client
-        .get_idf_log_unsafe(None, &word)
+        .get_idf_log_unchecked(None, &word)
         .await
         .unwrap()
         .unwrap();
     assert_eq!(&word_from_ipdis.data.data.data, &word,);
 
     // get the word counts
-    let count_from_ipdis = client.get_idf_count_unsafe(&word).await.unwrap();
+    let count_from_ipdis = client.get_idf_count_unchecked(&word).await.unwrap();
     assert_eq!(count_from_ipdis, count);
 
     // get the word counts of the account
     let count_from_ipdis = client
-        .get_idf_count_with_guarantee_unsafe(&account, &word)
+        .get_idf_count_with_guarantee_unchecked(&account, &word)
         .await
         .unwrap();
     assert_eq!(count_from_ipdis, count);
 
     // cleanup test data
-    client.delete_idf_all_unsafe(&word.kind).await.unwrap()
+    client.delete_idf_all_unchecked(&word.kind).await.unwrap()
 }

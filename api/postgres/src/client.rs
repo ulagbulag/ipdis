@@ -51,27 +51,38 @@ impl<IpiisClient> AsRef<IpsisClientInner<IpiisClient>> for IpdisClientInner<Ipii
     }
 }
 
-impl<'a> Infer<'a> for IpdisClient {
-    type GenesisArgs = ();
-
+impl<'a, IpiisClient> Infer<'a> for IpdisClientInner<IpiisClient>
+where
+    IpiisClient: Infer<'a, GenesisResult = IpiisClient>,
+    <IpiisClient as Infer<'a>>::GenesisArgs: Sized,
+{
+    type GenesisArgs = <IpiisClient as Infer<'a>>::GenesisArgs;
     type GenesisResult = Self;
 
     fn try_infer() -> Result<Self>
     where
         Self: Sized,
     {
+        IpsisClientInner::try_infer().and_then(Self::with_ipsis_client)
+    }
+
+    fn genesis(
+        args: <Self as Infer<'a>>::GenesisArgs,
+    ) -> Result<<Self as Infer<'a>>::GenesisResult> {
+        IpsisClientInner::genesis(args).and_then(Self::with_ipsis_client)
+    }
+}
+
+impl<IpiisClient> IpdisClientInner<IpiisClient> {
+    pub fn with_ipsis_client(ipsis: IpsisClientInner<IpiisClient>) -> Result<Self> {
         let database_url: String = env::infer("DATABASE_URL")?;
 
         Ok(Self {
-            ipsis: IpsisClientInner::try_infer()?,
+            ipsis,
             connection: PgConnection::establish(&database_url)
                 .or_else(|_| bail!("Error connecting to {}", database_url))?
                 .into(),
         })
-    }
-
-    fn genesis((): <Self as Infer<'a>>::GenesisArgs) -> Result<<Self as Infer<'a>>::GenesisResult> {
-        Self::try_infer()
     }
 }
 
@@ -95,7 +106,7 @@ where
             return Ok(());
         }
 
-        crate::schema::dyn_paths::table
+        crate::schema::accounts_guarantees::table
             .filter(crate::schema::accounts_guarantees::guarantee.eq(guarantee.to_string()))
             .filter(crate::schema::accounts_guarantees::guarantor.eq(guarantor.to_string()))
             .filter(crate::schema::accounts_guarantees::created_date.lt(now))
@@ -115,7 +126,7 @@ where
             })
     }
 
-    async fn add_guarantee_unsafe(&self, guarantee: &GuaranteeSigned<AccountRef>) -> Result<()> {
+    async fn add_guarantee_unchecked(&self, guarantee: &GuaranteeSigned<AccountRef>) -> Result<()> {
         let guarantee = self.ipsis.as_ref().sign_as_guarantor(*guarantee)?;
 
         let record = crate::models::accounts_guarantees::NewAccountsGuarantee {
@@ -135,13 +146,13 @@ where
             .map_err(Into::into)
     }
 
-    async fn get_dyn_path_unsafe<Path>(
+    async fn get_dyn_path_unchecked<Path>(
         &self,
         guarantee: Option<&AccountRef>,
         path: &DynPath<Path>,
     ) -> Result<Option<GuarantorSigned<DynPath<::ipis::path::Path>>>>
     where
-        Path: Send + Sync,
+        Path: Copy + Send + Sync,
     {
         let guarantor = self.ipsis.as_ref().account_me().account_ref();
         let guarantee = guarantee.unwrap_or(&guarantor);
@@ -194,7 +205,7 @@ where
         }
     }
 
-    async fn put_dyn_path_unsafe(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()> {
+    async fn put_dyn_path_unchecked(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()> {
         let path = self.ipsis.as_ref().sign_as_guarantor(*path)?;
 
         let record = crate::models::dyn_paths::NewDynPath {
@@ -218,7 +229,7 @@ where
             .map_err(Into::into)
     }
 
-    async fn get_idf_count_unsafe(&self, word: &WordHash) -> Result<usize> {
+    async fn get_idf_count_unchecked(&self, word: &WordHash) -> Result<usize> {
         match crate::schema::idf_words::table
             .filter(crate::schema::idf_words::kind.eq(word.kind.to_string()))
             .filter(crate::schema::idf_words::lang.eq(word.text.lang.to_string()))
@@ -231,7 +242,7 @@ where
         }
     }
 
-    async fn get_idf_count_with_guarantee_unsafe(
+    async fn get_idf_count_with_guarantee_unchecked(
         &self,
         guarantee: &AccountRef,
         word: &WordHash,
@@ -251,7 +262,7 @@ where
         }
     }
 
-    async fn get_idf_logs_unsafe(
+    async fn get_idf_logs_unchecked(
         &self,
         guarantee: Option<&AccountRef>,
         query: &GetIdfWords,
@@ -311,7 +322,7 @@ where
             .collect()
     }
 
-    async fn put_idf_log_unsafe(&self, word: &GuaranteeSigned<WordHash>) -> Result<()> {
+    async fn put_idf_log_unchecked(&self, word: &GuaranteeSigned<WordHash>) -> Result<()> {
         let word = self.ipsis.as_ref().sign_as_guarantor(*word)?;
 
         let record = crate::models::idf::NewIdfLog {
@@ -404,7 +415,15 @@ impl<IpiisClient> IpdisClientInner<IpiisClient>
 where
     IpiisClient: AsRef<::ipdis_common::ipiis_api::client::IpiisClient>,
 {
-    pub async fn delete_dyn_path_all_unsafe(&self, kind: &Hash) -> Result<()> {
+    pub async fn delete_guarantee_unchecked(&self, guarantee: &AccountRef) -> Result<()> {
+        ::diesel::delete(crate::schema::accounts_guarantees::table)
+            .filter(crate::schema::accounts_guarantees::guarantee.eq(guarantee.to_string()))
+            .execute(&mut *self.connection.lock().await)
+            .map(|_| ())
+            .map_err(Into::into)
+    }
+
+    pub async fn delete_dyn_path_all_unchecked(&self, kind: &Hash) -> Result<()> {
         ::diesel::delete(crate::schema::dyn_paths::table)
             .filter(crate::schema::dyn_paths::kind.eq(kind.to_string()))
             .execute(&mut *self.connection.lock().await)
@@ -412,7 +431,7 @@ where
             .map_err(Into::into)
     }
 
-    pub async fn delete_idf_all_unsafe(&self, kind: &Hash) -> Result<()> {
+    pub async fn delete_idf_all_unchecked(&self, kind: &Hash) -> Result<()> {
         self.connection
             .lock()
             .await
