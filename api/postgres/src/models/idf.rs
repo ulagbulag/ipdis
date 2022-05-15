@@ -19,6 +19,26 @@ pub struct NewIdfWord {
 }
 
 #[derive(Debug, Queryable)]
+pub struct IdfWordGuarantee {
+    pub id: i32,
+    pub guarantee: String,
+    pub kind: String,
+    pub lang: String,
+    pub word: String,
+    pub count: i64,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::idf_words_guarantees)]
+pub struct NewIdfWordGuarantee {
+    pub guarantee: String,
+    pub kind: String,
+    pub lang: String,
+    pub word: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Queryable)]
 pub struct IdfLog {
     pub id: i32,
     // -- METADATA BEGIN --

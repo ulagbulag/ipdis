@@ -54,9 +54,21 @@ table! {
     }
 }
 
+table! {
+    idf_words_guarantees (id) {
+        id -> Int4,
+        guarantee -> Varchar,
+        kind -> Varchar,
+        lang -> Varchar,
+        word -> Varchar,
+        count -> Int8,
+    }
+}
+
 allow_tables_to_appear_in_same_query!(
     accounts_guarantees,
     dyn_paths,
     idf_logs,
     idf_words,
+    idf_words_guarantees,
 );

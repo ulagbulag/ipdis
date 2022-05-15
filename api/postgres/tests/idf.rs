@@ -46,6 +46,13 @@ async fn test_create() {
     let count_from_ipdis = client.get_idf_count_unsafe(&word).await.unwrap();
     assert_eq!(count_from_ipdis, count);
 
+    // get the word counts of the account
+    let count_from_ipdis = client
+        .get_idf_count_with_guarantee_unsafe(&account, &word)
+        .await
+        .unwrap();
+    assert_eq!(count_from_ipdis, count);
+
     // cleanup test data
     client.delete_idf_all_unsafe(&word.kind).await.unwrap()
 }

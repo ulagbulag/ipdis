@@ -231,6 +231,26 @@ where
         }
     }
 
+    async fn get_idf_count_with_guarantee_unsafe(
+        &self,
+        guarantee: &AccountRef,
+        word: &WordHash,
+    ) -> Result<usize> {
+        match crate::schema::idf_words_guarantees::table
+            .filter(crate::schema::idf_words_guarantees::guarantee.eq(guarantee.to_string()))
+            .filter(crate::schema::idf_words_guarantees::kind.eq(word.kind.to_string()))
+            .filter(crate::schema::idf_words_guarantees::lang.eq(word.text.lang.to_string()))
+            .filter(crate::schema::idf_words_guarantees::word.eq(word.text.msg.to_string()))
+            .get_results::<crate::models::idf::IdfWordGuarantee>(
+                &mut *self.connection.lock().await,
+            )?
+            .pop()
+        {
+            Some(record) => record.count.try_into().map_err(Into::into),
+            None => Ok(0),
+        }
+    }
+
     async fn get_idf_logs_unsafe(
         &self,
         guarantee: Option<&AccountRef>,
@@ -328,23 +348,53 @@ where
                     Some(idf_word) => ::diesel::update(crate::schema::idf_words::table)
                         .filter(crate::schema::idf_words::id.eq(idf_word.id))
                         .set(crate::schema::idf_words::count.eq(idf_word.count + 1))
-                        .execute(conn)
-                        .map(|_| ()),
+                        .execute(conn)?,
                     // new word => insert the word record
                     None => {
                         let word_record = crate::models::idf::NewIdfWord {
-                            kind: word.data.kind.to_string(),
-                            lang: word.data.text.lang.to_string(),
-                            word: word.data.text.msg.to_string(),
+                            kind: record.kind.clone(),
+                            lang: record.lang.clone(),
+                            word: record.word.clone(),
                             count: 1,
                         };
 
                         ::diesel::insert_into(crate::schema::idf_words::table)
                             .values(&word_record)
-                            .execute(conn)
-                            .map(|_| ())
+                            .execute(conn)?
                     }
-                }
+                };
+
+                // check whether word of guarantee exists
+                match crate::schema::idf_words_guarantees::table
+                    .filter(crate::schema::idf_words_guarantees::guarantee.eq(&record.guarantee))
+                    .filter(crate::schema::idf_words_guarantees::kind.eq(&record.kind))
+                    .filter(crate::schema::idf_words_guarantees::lang.eq(&record.lang))
+                    .filter(crate::schema::idf_words_guarantees::word.eq(&record.word))
+                    .get_results::<crate::models::idf::IdfWordGuarantee>(conn)?
+                    .pop()
+                {
+                    // old word => append the count
+                    Some(idf_word) => ::diesel::update(crate::schema::idf_words_guarantees::table)
+                        .filter(crate::schema::idf_words_guarantees::id.eq(idf_word.id))
+                        .set(crate::schema::idf_words_guarantees::count.eq(idf_word.count + 1))
+                        .execute(conn)?,
+                    // new word => insert the word record
+                    None => {
+                        let word_record = crate::models::idf::NewIdfWordGuarantee {
+                            guarantee: record.guarantee.clone(),
+                            kind: record.kind.clone(),
+                            lang: record.lang.clone(),
+                            word: record.word.clone(),
+                            count: 1,
+                        };
+
+                        ::diesel::insert_into(crate::schema::idf_words_guarantees::table)
+                            .values(&word_record)
+                            .execute(conn)?
+                    }
+                };
+
+                Ok(())
             })
             .map_err(Into::into)
     }
@@ -369,6 +419,11 @@ where
             .transaction::<(), ::diesel::result::Error, _>(|conn| {
                 ::diesel::delete(crate::schema::idf_words::table)
                     .filter(crate::schema::idf_words::kind.eq(kind.to_string()))
+                    .execute(conn)
+                    .map(|_| ())?;
+
+                ::diesel::delete(crate::schema::idf_words_guarantees::table)
+                    .filter(crate::schema::idf_words_guarantees::kind.eq(kind.to_string()))
                     .execute(conn)
                     .map(|_| ())?;
 

@@ -70,6 +70,24 @@ pub trait Ipdis {
 
     async fn get_idf_count_unsafe(&self, word: &WordHash) -> Result<usize>;
 
+    async fn get_idf_count_with_guarantee(
+        &self,
+        word: &GuaranteeSigned<WordHash>,
+    ) -> Result<usize> {
+        let guarantee = &word.guarantee.account;
+        let guarantor = &word.data.guarantor;
+        self.ensure_registered(guarantee, guarantor).await?;
+
+        self.get_idf_count_with_guarantee_unsafe(guarantee, &word.data)
+            .await
+    }
+
+    async fn get_idf_count_with_guarantee_unsafe(
+        &self,
+        guarantee: &AccountRef,
+        word: &WordHash,
+    ) -> Result<usize>;
+
     async fn get_idf_log(
         &self,
         word: &GuaranteeSigned<WordHash>,

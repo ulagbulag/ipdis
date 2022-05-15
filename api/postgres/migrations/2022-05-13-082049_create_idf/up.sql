@@ -5,7 +5,16 @@ CREATE TABLE idf_words (
   lang SHA256HASH NOT NULL,
   word SHA256HASH NOT NULL,
   count BIGINT NOT NULL,
-  UNIQUE (kind, word)
+  UNIQUE (kind, lang, word)
+);
+CREATE TABLE idf_words_guarantees (
+  id SERIAL PRIMARY KEY,
+  guarantee ACCOUNT NOT NULL,
+  kind SHA256HASH NOT NULL,
+  lang SHA256HASH NOT NULL,
+  word SHA256HASH NOT NULL,
+  count BIGINT NOT NULL,
+  UNIQUE (guarantee, kind, lang, word)
 );
 CREATE TABLE idf_logs (
   id SERIAL PRIMARY KEY,
