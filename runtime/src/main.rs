@@ -3,5 +3,5 @@ use ipis::{env::Infer, tokio};
 
 #[tokio::main]
 async fn main() {
-    IpdisServer::infer().run().await
+    IpdisServer::infer().await.run().await
 }

@@ -13,7 +13,7 @@ use ipis::{
 #[tokio::main]
 async fn main() -> Result<()> {
     // deploy a server
-    let server = IpdisServer::genesis(5001)?;
+    let server = IpdisServer::genesis(5001).await?;
     let server_account = {
         let server: &IpiisServer = server.as_ref();
         let account = server.account_me();
@@ -26,10 +26,10 @@ async fn main() -> Result<()> {
     tokio::spawn(async move { server.run().await });
 
     // create a guarantor client
-    let client_guarantor = IpdisClient::infer();
+    let client_guarantor = IpdisClient::infer().await;
 
     // create a client
-    let client = IpiisClient::genesis(Some(server_account))?;
+    let client = IpiisClient::genesis(Some(server_account)).await?;
     let client_account = client.account_me().account_ref();
     client.add_address(server_account, "127.0.0.1:5001".parse()?)?;
 

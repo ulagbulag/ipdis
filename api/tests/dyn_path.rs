@@ -11,7 +11,7 @@ use ipis::{
 #[tokio::test]
 async fn test_create() {
     // create a client
-    let client = IpdisClient::infer();
+    let client = IpdisClient::infer().await;
     let ipiis: &IpiisClient = client.as_ref();
     let account = ipiis.account_me().account_ref();
 
