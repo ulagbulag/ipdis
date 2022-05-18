@@ -151,7 +151,6 @@ pub trait Ipdis {
 impl<IpiisClient> Ipdis for IpiisClient
 where
     IpiisClient: Ipiis + Send + Sync,
-    <IpiisClient as Ipiis>::Opcode: Default,
 {
     async fn ensure_registered(
         &self,
@@ -168,7 +167,7 @@ where
 
     async fn add_guarantee_unchecked(&self, guarantee: &GuaranteeSigned<AccountRef>) -> Result<()> {
         // next target
-        let target = self.account_primary()?;
+        let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // pack request
         let req = RequestType::GuaranteePut {
@@ -178,7 +177,7 @@ where
         // external call
         let () = external_call!(
             call: self
-                .call_permanent_deserialized(Default::default(), &target, req)
+                .call_permanent_deserialized(&target, req)
                 .await?,
             response: Response => GuaranteePut,
         );
@@ -196,7 +195,7 @@ where
         Path: Copy + Send + Sync,
     {
         // next target
-        let target = self.account_primary()?;
+        let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // pack request
         let req = RequestType::DynPathGet {
@@ -206,7 +205,7 @@ where
         // external call
         let (path,) = external_call!(
             call: self
-                .call_permanent_deserialized(Default::default(), &target, req)
+                .call_permanent_deserialized(&target, req)
                 .await?,
             response: Response => DynPathGet,
             items: { path },
@@ -218,7 +217,7 @@ where
 
     async fn put_dyn_path_unchecked(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()> {
         // next target
-        let target = self.account_primary()?;
+        let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // pack request
         let req = RequestType::DynPathPut {
@@ -228,7 +227,7 @@ where
         // external call
         let () = external_call!(
             call: self
-                .call_permanent_deserialized(Default::default(), &target, req)
+                .call_permanent_deserialized(&target, req)
                 .await?,
             response: Response => DynPathPut,
         );
@@ -239,7 +238,7 @@ where
 
     async fn get_idf_count_unchecked(&self, word: &WordHash) -> Result<usize> {
         // next target
-        let target = self.account_primary()?;
+        let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // pack request
         let req = RequestType::IdfCountGet {
@@ -249,7 +248,7 @@ where
         // external call
         let (count,) = external_call!(
             call: self
-                .call_permanent_deserialized(Default::default(), &target, req)
+                .call_permanent_deserialized(&target, req)
                 .await?,
             response: Response => IdfCountGet,
             items: { count },
@@ -265,7 +264,7 @@ where
         word: &WordHash,
     ) -> Result<usize> {
         // next target
-        let target = self.account_primary()?;
+        let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // pack request
         let req = RequestType::IdfCountGetWithGuarantee {
@@ -275,7 +274,7 @@ where
         // external call
         let (count,) = external_call!(
             call: self
-                .call_permanent_deserialized(Default::default(), &target, req)
+                .call_permanent_deserialized(&target, req)
                 .await?,
             response: Response => IdfCountGetWithGuarantee,
             items: { count },
@@ -291,7 +290,7 @@ where
         query: &GetIdfWords,
     ) -> Result<Vec<GuarantorSigned<WordHash>>> {
         // next target
-        let target = self.account_primary()?;
+        let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // pack request
         let req = RequestType::IdfLogGetMany {
@@ -301,7 +300,7 @@ where
         // external call
         let (logs,) = external_call!(
             call: self
-                .call_permanent_deserialized(Default::default(), &target, req)
+                .call_permanent_deserialized(&target, req)
                 .await?,
             response: Response => IdfLogGetMany,
             items: { logs },
@@ -313,7 +312,7 @@ where
 
     async fn put_idf_log_unchecked(&self, word: &GuaranteeSigned<WordHash>) -> Result<()> {
         // next target
-        let target = self.account_primary()?;
+        let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // pack request
         let req = RequestType::IdfLogPut {
@@ -323,7 +322,7 @@ where
         // external call
         let () = external_call!(
             call: self
-                .call_permanent_deserialized(Default::default(), &target, req)
+                .call_permanent_deserialized(&target, req)
                 .await?,
             response: Response => IdfLogPut,
         );
@@ -390,4 +389,10 @@ pub struct GetIdfWords {
     pub word: WordHash,
     pub start_index: u32,
     pub end_index: u32,
+}
+
+::ipis::lazy_static::lazy_static! {
+    pub static ref KIND: Option<::ipis::core::value::hash::Hash> = Some(
+        ::ipis::core::value::hash::Hash::with_str("__ipis__ipdis__"),
+    );
 }

@@ -1,5 +1,8 @@
-use ipdis_api::{client::IpdisClient, server::IpdisServer};
-use ipdis_common::Ipdis;
+use ipdis_api::{
+    client::IpdisClient,
+    common::{Ipdis, KIND},
+    server::IpdisServer,
+};
 use ipiis_api::{client::IpiisClient, common::Ipiis, server::IpiisServer};
 use ipis::{
     core::{
@@ -29,9 +32,14 @@ async fn main() -> Result<()> {
     let client_guarantor = IpdisClient::infer().await;
 
     // create a client
-    let client = IpiisClient::genesis(Some(server_account)).await?;
+    let client = IpiisClient::genesis(None).await?;
     let client_account = client.account_me().account_ref();
-    client.add_address(server_account, "127.0.0.1:5001".parse()?)?;
+    client
+        .set_account_primary(KIND.as_ref(), &server_account)
+        .await?;
+    client
+        .set_address(&server_account, &"127.0.0.1:5001".parse()?)
+        .await?;
 
     // register the client as guarantee
     {

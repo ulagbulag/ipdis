@@ -77,7 +77,7 @@ impl<IpiisClient> IpdisClientInner<IpiisClient> {
         Ok(Self {
             ipiis,
             connection: PgConnection::establish(&database_url)
-                .or_else(|_| bail!("Error connecting to {}", database_url))?
+                .or_else(|_| bail!("Error connecting to {database_url}"))?
                 .into(),
         })
     }
