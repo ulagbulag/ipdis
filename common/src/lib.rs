@@ -1,12 +1,13 @@
 #![feature(more_qualified_paths)]
 
 use bytecheck::CheckBytes;
-use ipiis_common::{external_call, Ipiis};
+use ipiis_common::{define_io, external_call, Ipiis, ServerResult};
 use ipis::{
     async_trait::async_trait,
     core::{
         account::{AccountRef, GuaranteeSigned, GuarantorSigned},
         anyhow::{bail, Result},
+        signed::IsSigned,
         value::word::WordHash,
     },
     path::{DynPath, Path},
@@ -169,17 +170,14 @@ where
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
-        // pack request
-        let req = RequestType::GuaranteePut {
-            guarantee: (*guarantee).into(),
-        };
-
         // external call
         let () = external_call!(
-            call: self
-                .call_permanent_deserialized(&target, req)
-                .await?,
-            response: Response => GuaranteePut,
+            client: self,
+            target: KIND.as_ref() => &target,
+            request: crate::io => GuaranteePut,
+            sign: *guarantee,
+            inputs: { },
+            outputs: { },
         );
 
         // unpack response
@@ -197,39 +195,32 @@ where
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
-        // pack request
-        let req = RequestType::DynPathGet {
-            path: (*path).remove_path().into(),
-        };
-
         // external call
         let (path,) = external_call!(
-            call: self
-                .call_permanent_deserialized(&target, req)
-                .await?,
-            response: Response => DynPathGet,
-            items: { path },
+            client: self,
+            target: KIND.as_ref() => &target,
+            request: crate::io => DynPathGet,
+            sign: self.sign(target, (*path).remove_path())?,
+            inputs: { },
+            outputs: { path, },
         );
 
         // unpack response
-        Ok(*path)
+        Ok(path)
     }
 
     async fn put_dyn_path_unchecked(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()> {
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
-        // pack request
-        let req = RequestType::DynPathPut {
-            path: (*path).into(),
-        };
-
         // external call
         let () = external_call!(
-            call: self
-                .call_permanent_deserialized(&target, req)
-                .await?,
-            response: Response => DynPathPut,
+            client: self,
+            target: KIND.as_ref() => &target,
+            request: crate::io => DynPathPut,
+            sign: *path,
+            inputs: { },
+            outputs: { },
         );
 
         // unpack response
@@ -240,18 +231,14 @@ where
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
-        // pack request
-        let req = RequestType::IdfCountGet {
-            word: (*word).into(),
-        };
-
         // external call
         let (count,) = external_call!(
-            call: self
-                .call_permanent_deserialized(&target, req)
-                .await?,
-            response: Response => IdfCountGet,
-            items: { count },
+            client: self,
+            target: KIND.as_ref() => &target,
+            request: crate::io => IdfCountGet,
+            sign: self.sign(target, *word)?,
+            inputs: { },
+            outputs: { count, },
         );
 
         // unpack response
@@ -266,18 +253,14 @@ where
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
-        // pack request
-        let req = RequestType::IdfCountGetWithGuarantee {
-            word: (*word).into(),
-        };
-
         // external call
         let (count,) = external_call!(
-            call: self
-                .call_permanent_deserialized(&target, req)
-                .await?,
-            response: Response => IdfCountGetWithGuarantee,
-            items: { count },
+            client: self,
+            target: KIND.as_ref() => &target,
+            request: crate::io => IdfCountGetWithGuarantee,
+            sign: self.sign(target, *word)?,
+            inputs: { },
+            outputs: { count, },
         );
 
         // unpack response
@@ -292,18 +275,14 @@ where
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
-        // pack request
-        let req = RequestType::IdfLogGetMany {
-            query: (*query).into(),
-        };
-
         // external call
         let (logs,) = external_call!(
-            call: self
-                .call_permanent_deserialized(&target, req)
-                .await?,
-            response: Response => IdfLogGetMany,
-            items: { logs },
+            client: self,
+            target: KIND.as_ref() => &target,
+            request: crate::io => IdfLogGetMany,
+            sign: self.sign(target, *query)?,
+            inputs: { },
+            outputs: { logs, },
         );
 
         // unpack response
@@ -314,17 +293,14 @@ where
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
-        // pack request
-        let req = RequestType::IdfLogPut {
-            word: (*word).into(),
-        };
-
         // external call
         let () = external_call!(
-            call: self
-                .call_permanent_deserialized(&target, req)
-                .await?,
-            response: Response => IdfLogPut,
+            client: self,
+            target: KIND.as_ref() => &target,
+            request: crate::io => IdfLogPut,
+            sign: *word,
+            inputs: { },
+            outputs: { },
         );
 
         // unpack response
@@ -332,54 +308,64 @@ where
     }
 }
 
-pub type Request = GuaranteeSigned<RequestType>;
-
-#[derive(Clone, Debug, PartialEq, Archive, Serialize, Deserialize)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(CheckBytes, Debug, PartialEq))]
-pub enum RequestType {
+define_io! {
     GuaranteePut {
-        guarantee: Box<GuaranteeSigned<AccountRef>>,
+        inputs: { },
+        input_sign: GuaranteeSigned<AccountRef>,
+        outputs: { },
+        output_sign: GuarantorSigned<AccountRef>,
+        generics: { },
     },
     DynPathGet {
-        path: Box<DynPath<()>>,
+        inputs: { },
+        input_sign: GuaranteeSigned<DynPath<()>>,
+        outputs: {
+            path: Option<GuarantorSigned<DynPath<Path>>>,
+        },
+        output_sign: GuarantorSigned<DynPath<()>>,
+        generics: { },
     },
     DynPathPut {
-        path: Box<GuaranteeSigned<DynPath<Path>>>,
+        inputs: { },
+        input_sign: GuaranteeSigned<DynPath<Path>>,
+        outputs: { },
+        output_sign: GuarantorSigned<DynPath<Path>>,
+        generics: { },
     },
     IdfCountGet {
-        word: Box<WordHash>,
+        inputs: { },
+        input_sign: GuaranteeSigned<WordHash>,
+        outputs: {
+            count: u32,
+        },
+        output_sign: GuarantorSigned<WordHash>,
+        generics: { },
     },
     IdfCountGetWithGuarantee {
-        word: Box<WordHash>,
+        inputs: { },
+        input_sign: GuaranteeSigned<WordHash>,
+        outputs: {
+            count: u32,
+        },
+        output_sign: GuarantorSigned<WordHash>,
+        generics: { },
     },
     IdfLogGetMany {
-        query: Box<GetIdfWords>,
+        inputs: { },
+        input_sign: GuaranteeSigned<GetIdfWords>,
+        outputs: {
+            logs: Vec<GuarantorSigned<WordHash>>,
+        },
+        output_sign: GuarantorSigned<GetIdfWords>,
+        generics: { },
     },
     IdfLogPut {
-        word: Box<GuaranteeSigned<WordHash>>,
+        inputs: { },
+        input_sign: GuaranteeSigned<WordHash>,
+        outputs: { },
+        output_sign: GuarantorSigned<WordHash>,
+        generics: { },
     },
-}
-
-#[derive(Clone, Debug, PartialEq, Archive, Serialize, Deserialize)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(CheckBytes, Debug, PartialEq))]
-pub enum Response {
-    GuaranteePut,
-    DynPathGet {
-        path: Box<Option<GuarantorSigned<DynPath<Path>>>>,
-    },
-    DynPathPut,
-    IdfCountGet {
-        count: u32,
-    },
-    IdfCountGetWithGuarantee {
-        count: u32,
-    },
-    IdfLogGetMany {
-        logs: Vec<GuarantorSigned<WordHash>>,
-    },
-    IdfLogPut,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Archive, Serialize, Deserialize)]
@@ -390,6 +376,8 @@ pub struct GetIdfWords {
     pub start_index: u32,
     pub end_index: u32,
 }
+
+impl IsSigned for GetIdfWords {}
 
 ::ipis::lazy_static::lazy_static! {
     pub static ref KIND: Option<::ipis::core::value::hash::Hash> = Some(

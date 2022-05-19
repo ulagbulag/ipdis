@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
         .set_account_primary(KIND.as_ref(), &server_account)
         .await?;
     client
-        .set_address(&server_account, &"127.0.0.1:5001".parse()?)
+        .set_address(KIND.as_ref(), &server_account, &"127.0.0.1:5001".parse()?)
         .await?;
 
     // register the client as guarantee
