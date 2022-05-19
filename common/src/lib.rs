@@ -1,5 +1,3 @@
-#![feature(more_qualified_paths)]
-
 use bytecheck::CheckBytes;
 use ipiis_common::{define_io, external_call, Ipiis, ServerResult};
 use ipis::{
