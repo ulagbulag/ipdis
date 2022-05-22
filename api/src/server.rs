@@ -49,10 +49,9 @@ handle_external_call!(
         GuaranteePut => handle_guarantee_put,
         DynPathGet => handle_dyn_path_get,
         DynPathPut => handle_dyn_path_put,
-        IdfCountGet => handle_idf_count_get,
-        IdfCountGetWithGuarantee => handle_idf_count_get_with_guarantee,
-        IdfLogGetMany => handle_log_get_many,
-        IdfLogPut => handle_log_put,
+        WordGetMany => handle_word_get_many,
+        WordCountGetMany => handle_word_count_get_many,
+        WordPut => handle_word_put,
     },
 );
 
@@ -144,71 +143,10 @@ impl IpdisServer {
         })
     }
 
-    async fn handle_idf_count_get(
+    async fn handle_word_get_many(
         client: &IpdisClientInner<IpiisServer>,
-        req: ::ipdis_common::io::request::IdfCountGet<'static>,
-    ) -> Result<::ipdis_common::io::response::IdfCountGet<'static>> {
-        // unpack sign
-        let sign_as_guarantee = req.__sign.into_owned().await?;
-
-        // ensure registered
-        let guarantee = &sign_as_guarantee.guarantee.account;
-        client
-            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
-            .await?;
-
-        // unpack data
-        let word = sign_as_guarantee.data.data;
-
-        // handle data
-        let count = client.get_idf_count_unchecked(&word).await?;
-
-        // sign data
-        let server: &IpiisServer = client.as_ref();
-        let sign = server.sign_as_guarantor(sign_as_guarantee)?;
-
-        // pack data
-        Ok(::ipdis_common::io::response::IdfCountGet {
-            __lifetime: Default::default(),
-            __sign: ::ipis::stream::DynStream::Owned(sign),
-            count: ::ipis::stream::DynStream::Owned(count.try_into()?),
-        })
-    }
-
-    async fn handle_idf_count_get_with_guarantee(
-        client: &IpdisClientInner<IpiisServer>,
-        req: ::ipdis_common::io::request::IdfCountGetWithGuarantee<'static>,
-    ) -> Result<::ipdis_common::io::response::IdfCountGetWithGuarantee<'static>> {
-        // unpack sign
-        let sign_as_guarantee = req.__sign.into_owned().await?;
-
-        // ensure registered
-        let guarantee = &sign_as_guarantee.guarantee.account;
-        client
-            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
-            .await?;
-
-        // handle data
-        let count = client
-            .get_idf_count_with_guarantee(&sign_as_guarantee)
-            .await?;
-
-        // sign data
-        let server: &IpiisServer = client.as_ref();
-        let sign = server.sign_as_guarantor(sign_as_guarantee)?;
-
-        // pack data
-        Ok(::ipdis_common::io::response::IdfCountGetWithGuarantee {
-            __lifetime: Default::default(),
-            __sign: ::ipis::stream::DynStream::Owned(sign),
-            count: ::ipis::stream::DynStream::Owned(count.try_into()?),
-        })
-    }
-
-    async fn handle_log_get_many(
-        client: &IpdisClientInner<IpiisServer>,
-        req: ::ipdis_common::io::request::IdfLogGetMany<'static>,
-    ) -> Result<::ipdis_common::io::response::IdfLogGetMany<'static>> {
+        req: ::ipdis_common::io::request::WordGetMany<'static>,
+    ) -> Result<::ipdis_common::io::response::WordGetMany<'static>> {
         // unpack sign
         let sign_as_guarantee = req.__sign.into_owned().await?;
 
@@ -222,8 +160,8 @@ impl IpdisServer {
         let query = sign_as_guarantee.data.data;
 
         // handle data
-        let logs = client
-            .get_idf_logs_unchecked(Some(guarantee), &query)
+        let words = client
+            .get_word_many_unchecked(Some(guarantee), &query)
             .await?;
 
         // sign data
@@ -231,17 +169,17 @@ impl IpdisServer {
         let sign = server.sign_as_guarantor(sign_as_guarantee)?;
 
         // pack data
-        Ok(::ipdis_common::io::response::IdfLogGetMany {
+        Ok(::ipdis_common::io::response::WordGetMany {
             __lifetime: Default::default(),
             __sign: ::ipis::stream::DynStream::Owned(sign),
-            logs: ::ipis::stream::DynStream::Owned(logs),
+            words: ::ipis::stream::DynStream::Owned(words),
         })
     }
 
-    async fn handle_log_put(
+    async fn handle_word_count_get_many(
         client: &IpdisClientInner<IpiisServer>,
-        req: ::ipdis_common::io::request::IdfLogPut<'static>,
-    ) -> Result<::ipdis_common::io::response::IdfLogPut<'static>> {
+        req: ::ipdis_common::io::request::WordCountGetMany<'static>,
+    ) -> Result<::ipdis_common::io::response::WordCountGetMany<'static>> {
         // unpack sign
         let sign_as_guarantee = req.__sign.into_owned().await?;
 
@@ -251,15 +189,53 @@ impl IpdisServer {
             .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
             .await?;
 
+        // unpack data
+        let query = sign_as_guarantee.data.data;
+
         // handle data
-        let () = client.put_idf_log_unchecked(&sign_as_guarantee).await?;
+        let counts = client
+            .get_word_count_many_unchecked(Some(guarantee), &query)
+            .await?;
 
         // sign data
         let server: &IpiisServer = client.as_ref();
         let sign = server.sign_as_guarantor(sign_as_guarantee)?;
 
         // pack data
-        Ok(::ipdis_common::io::response::IdfLogPut {
+        Ok(::ipdis_common::io::response::WordCountGetMany {
+            __lifetime: Default::default(),
+            __sign: ::ipis::stream::DynStream::Owned(sign),
+            counts: ::ipis::stream::DynStream::Owned(counts),
+        })
+    }
+
+    async fn handle_word_put(
+        client: &IpdisClientInner<IpiisServer>,
+        req: ::ipdis_common::io::request::WordPut<'static>,
+    ) -> Result<::ipdis_common::io::response::WordPut<'static>> {
+        // unpack sign
+        let sign_as_guarantee = req.__sign.into_owned().await?;
+
+        // ensure registered
+        let guarantee = &sign_as_guarantee.guarantee.account;
+        client
+            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
+            .await?;
+
+        // unpack data
+        let parent = req.parent.into_owned().await?;
+
+        // handle data
+        let () = client
+            .put_word_unchecked(&parent, &sign_as_guarantee)
+            .await?;
+
+        // sign data
+        let server: &IpiisServer = client.as_ref();
+        let sign = server.sign_as_guarantor(sign_as_guarantee)?;
+
+        // pack data
+        Ok(::ipdis_common::io::response::WordPut {
             __lifetime: Default::default(),
             __sign: ::ipis::stream::DynStream::Owned(sign),
         })

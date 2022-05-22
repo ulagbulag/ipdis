@@ -2,7 +2,7 @@ use diesel::{
     dsl::now, BoolExpressionMethods, Connection, ExpressionMethods, PgConnection, QueryDsl,
     RunQueryDsl,
 };
-use ipdis_common::{GetIdfWords, Ipdis};
+use ipdis_common::{GetWords, GetWordsCounts, GetWordsCountsOutput, GetWordsParent, Ipdis};
 use ipiis_api::common::Ipiis;
 use ipis::{
     async_trait::async_trait,
@@ -226,60 +226,42 @@ where
             .map_err(Into::into)
     }
 
-    async fn get_idf_count_unchecked(&self, word: &WordHash) -> Result<usize> {
-        match crate::schema::idf_words::table
-            .filter(crate::schema::idf_words::kind.eq(word.kind.to_string()))
-            .filter(crate::schema::idf_words::lang.eq(word.text.lang.to_string()))
-            .filter(crate::schema::idf_words::word.eq(word.text.msg.to_string()))
-            .get_results::<crate::models::idf::IdfWord>(&mut *self.connection.lock().await)?
-            .pop()
-        {
-            Some(record) => record.count.try_into().map_err(Into::into),
-            None => Ok(0),
-        }
-    }
-
-    async fn get_idf_count_with_guarantee_unchecked(
-        &self,
-        guarantee: &AccountRef,
-        word: &WordHash,
-    ) -> Result<usize> {
-        match crate::schema::idf_words_guarantees::table
-            .filter(crate::schema::idf_words_guarantees::guarantee.eq(guarantee.to_string()))
-            .filter(crate::schema::idf_words_guarantees::kind.eq(word.kind.to_string()))
-            .filter(crate::schema::idf_words_guarantees::lang.eq(word.text.lang.to_string()))
-            .filter(crate::schema::idf_words_guarantees::word.eq(word.text.msg.to_string()))
-            .get_results::<crate::models::idf::IdfWordGuarantee>(
-                &mut *self.connection.lock().await,
-            )?
-            .pop()
-        {
-            Some(record) => record.count.try_into().map_err(Into::into),
-            None => Ok(0),
-        }
-    }
-
-    async fn get_idf_logs_unchecked(
+    async fn get_word_many_unchecked(
         &self,
         guarantee: Option<&AccountRef>,
-        query: &GetIdfWords,
+        query: &GetWords,
     ) -> Result<Vec<GuarantorSigned<WordHash>>> {
+        if query.end_index <= query.start_index {
+            bail!("malformed index: end_index should be bigger than start_index")
+        }
+
         let guarantor = self.ipiis.account_me().account_ref();
         let guarantee = guarantee.unwrap_or(&guarantor);
 
-        let records: Vec<crate::models::idf::IdfLog> = crate::schema::idf_logs::table
-            .filter(crate::schema::idf_logs::guarantee.eq(guarantee.to_string()))
-            .filter(crate::schema::idf_logs::guarantor.eq(guarantor.to_string()))
-            .filter(crate::schema::idf_logs::created_date.lt(now))
+        let sql = crate::schema::words::table
+            .order(crate::schema::words::id.desc())
+            // TODO: improve performance (pagination: rather than offset & limit ?)
+            .offset(query.start_index.into())
+            .limit((query.end_index - query.start_index).into())
+            .filter(crate::schema::words::guarantee.eq(guarantee.to_string()))
+            .filter(crate::schema::words::guarantor.eq(guarantor.to_string()))
+            .filter(crate::schema::words::created_date.lt(now))
             .filter(
-                crate::schema::idf_logs::expiration_date
+                crate::schema::words::expiration_date
                     .ge(now)
-                    .or(crate::schema::idf_logs::expiration_date.is_null()),
+                    .or(crate::schema::words::expiration_date.is_null()),
             )
-            .filter(crate::schema::idf_logs::kind.eq(query.word.kind.to_string()))
-            .filter(crate::schema::idf_logs::lang.eq(query.word.text.lang.to_string()))
-            .filter(crate::schema::idf_logs::word.eq(query.word.text.msg.to_string()))
-            .get_results(&mut *self.connection.lock().await)?;
+            .filter(crate::schema::words::kind.eq(query.word.kind.to_string()))
+            .filter(crate::schema::words::lang.eq(query.word.text.lang.to_string()));
+
+        let records: Vec<crate::models::words::Word> = match query.parent {
+            GetWordsParent::None => sql
+                .filter(crate::schema::words::word.eq(query.word.text.msg.to_string()))
+                .get_results(&mut *self.connection.lock().await)?,
+            GetWordsParent::Duplicated => sql
+                .filter(crate::schema::words::parent.eq(query.word.text.msg.to_string()))
+                .get_results(&mut *self.connection.lock().await)?,
+        };
 
         records
             .into_iter()
@@ -319,10 +301,110 @@ where
             .collect()
     }
 
-    async fn put_idf_log_unchecked(&self, word: &GuaranteeSigned<WordHash>) -> Result<()> {
+    async fn get_word_count_many_unchecked(
+        &self,
+        guarantee: Option<&AccountRef>,
+        query: &GetWordsCounts,
+    ) -> Result<Vec<GetWordsCountsOutput>> {
+        let guarantor = self.ipiis.account_me().account_ref();
+        let guarantee = guarantee.unwrap_or(&guarantor);
+
+        if query.owned {
+            let sql = crate::schema::words_counts_guarantees::table
+                .order(crate::schema::words_counts_guarantees::id.desc())
+                // TODO: improve performance (pagination: rather than offset & limit ?)
+                .offset(query.start_index.into())
+                .limit((query.end_index - query.start_index).into())
+                .filter(crate::schema::words_counts_guarantees::guarantee.eq(guarantee.to_string()))
+                .filter(
+                    crate::schema::words_counts_guarantees::kind.eq(query.word.kind.to_string()),
+                )
+                .filter(
+                    crate::schema::words_counts_guarantees::lang.eq(query
+                        .word
+                        .text
+                        .lang
+                        .to_string()),
+                );
+
+            let records: Vec<crate::models::words::WordCountGuarantee> = if query.parent {
+                sql.filter(
+                    crate::schema::words_counts_guarantees::parent.eq(query
+                        .word
+                        .text
+                        .msg
+                        .to_string()),
+                )
+                .get_results(&mut *self.connection.lock().await)?
+            } else {
+                sql.filter(
+                    crate::schema::words_counts_guarantees::word.eq(query
+                        .word
+                        .text
+                        .msg
+                        .to_string()),
+                )
+                .get_results(&mut *self.connection.lock().await)?
+            };
+
+            records
+                .into_iter()
+                .map(|record| {
+                    Ok(GetWordsCountsOutput {
+                        word: WordHash {
+                            kind: record.kind.parse()?,
+                            text: TextHash {
+                                lang: record.lang.parse()?,
+                                msg: record.word.parse()?,
+                            },
+                        },
+                        count: record.count.try_into()?,
+                    })
+                })
+                .collect()
+        } else {
+            let sql = crate::schema::words_counts::table
+                .order(crate::schema::words_counts::id.desc())
+                // TODO: improve performance (pagination: rather than offset & limit ?)
+                .offset(query.start_index.into())
+                .limit((query.end_index - query.start_index).into())
+                .filter(crate::schema::words_counts::kind.eq(query.word.kind.to_string()))
+                .filter(crate::schema::words_counts::lang.eq(query.word.text.lang.to_string()));
+
+            let records: Vec<crate::models::words::WordCount> = if query.parent {
+                sql.filter(crate::schema::words_counts::parent.eq(query.word.text.msg.to_string()))
+                    .get_results(&mut *self.connection.lock().await)?
+            } else {
+                sql.filter(crate::schema::words_counts::word.eq(query.word.text.msg.to_string()))
+                    .get_results(&mut *self.connection.lock().await)?
+            };
+
+            records
+                .into_iter()
+                .map(|record| {
+                    Ok(GetWordsCountsOutput {
+                        word: WordHash {
+                            kind: record.kind.parse()?,
+                            text: TextHash {
+                                lang: record.lang.parse()?,
+                                msg: record.word.parse()?,
+                            },
+                        },
+                        count: record.count.try_into()?,
+                    })
+                })
+                .collect()
+        }
+    }
+
+    async fn put_word_unchecked(
+        &self,
+        parent: &Hash,
+        word: &GuaranteeSigned<WordHash>,
+    ) -> Result<()> {
         let word = self.ipiis.sign_as_guarantor(*word)?;
 
-        let record = crate::models::idf::NewIdfLog {
+        let record = crate::models::words::NewWord {
             nonce: word.nonce.0 .0,
             guarantee: word.guarantee.account.to_string(),
             guarantor: word.guarantor.account.to_string(),
@@ -331,6 +413,7 @@ where
             created_date: word.created_date.naive_utc(),
             expiration_date: word.expiration_date.map(|e| e.naive_utc()),
             kind: word.data.kind.to_string(),
+            parent: parent.to_string(),
             lang: word.data.text.lang.to_string(),
             word: word.data.text.msg.to_string(),
         };
@@ -339,64 +422,76 @@ where
             .lock()
             .await
             .transaction::<(), ::diesel::result::Error, _>(|conn| {
-                // insert the log record
-                ::diesel::insert_into(crate::schema::idf_logs::table)
+                // insert the word record
+                ::diesel::insert_into(crate::schema::words::table)
                     .values(&record)
                     .execute(conn)?;
 
                 // check whether word exists
-                match crate::schema::idf_words::table
-                    .filter(crate::schema::idf_words::kind.eq(&record.kind))
-                    .filter(crate::schema::idf_words::lang.eq(&record.lang))
-                    .filter(crate::schema::idf_words::word.eq(&record.word))
-                    .get_results::<crate::models::idf::IdfWord>(conn)?
+                match crate::schema::words_counts::table
+                    .filter(crate::schema::words_counts::kind.eq(&record.kind))
+                    .filter(crate::schema::words_counts::parent.eq(&record.parent))
+                    .filter(crate::schema::words_counts::lang.eq(&record.lang))
+                    .filter(crate::schema::words_counts::word.eq(&record.word))
+                    .get_results::<crate::models::words::WordCount>(conn)?
                     .pop()
                 {
                     // old word => append the count
-                    Some(idf_word) => ::diesel::update(crate::schema::idf_words::table)
-                        .filter(crate::schema::idf_words::id.eq(idf_word.id))
-                        .set(crate::schema::idf_words::count.eq(idf_word.count + 1))
+                    Some(word_count) => ::diesel::update(crate::schema::words_counts::table)
+                        .filter(crate::schema::words_counts::id.eq(word_count.id))
+                        .set(crate::schema::words_counts::count.eq(word_count.count + 1))
                         .execute(conn)?,
                     // new word => insert the word record
                     None => {
-                        let word_record = crate::models::idf::NewIdfWord {
+                        let word_record = crate::models::words::NewWordCount {
                             kind: record.kind.clone(),
+                            parent: record.parent.clone(),
                             lang: record.lang.clone(),
                             word: record.word.clone(),
                             count: 1,
                         };
 
-                        ::diesel::insert_into(crate::schema::idf_words::table)
+                        ::diesel::insert_into(crate::schema::words_counts::table)
                             .values(&word_record)
                             .execute(conn)?
                     }
                 };
 
                 // check whether word of guarantee exists
-                match crate::schema::idf_words_guarantees::table
-                    .filter(crate::schema::idf_words_guarantees::guarantee.eq(&record.guarantee))
-                    .filter(crate::schema::idf_words_guarantees::kind.eq(&record.kind))
-                    .filter(crate::schema::idf_words_guarantees::lang.eq(&record.lang))
-                    .filter(crate::schema::idf_words_guarantees::word.eq(&record.word))
-                    .get_results::<crate::models::idf::IdfWordGuarantee>(conn)?
+                match crate::schema::words_counts_guarantees::table
+                    .filter(crate::schema::words_counts_guarantees::guarantee.eq(&record.guarantee))
+                    .filter(crate::schema::words_counts_guarantees::kind.eq(&record.kind))
+                    .filter(crate::schema::words_counts_guarantees::parent.eq(&record.parent))
+                    .filter(crate::schema::words_counts_guarantees::lang.eq(&record.lang))
+                    .filter(crate::schema::words_counts_guarantees::word.eq(&record.word))
+                    .get_results::<crate::models::words::WordCountGuarantee>(conn)?
                     .pop()
                 {
                     // old word => append the count
-                    Some(idf_word) => ::diesel::update(crate::schema::idf_words_guarantees::table)
-                        .filter(crate::schema::idf_words_guarantees::id.eq(idf_word.id))
-                        .set(crate::schema::idf_words_guarantees::count.eq(idf_word.count + 1))
-                        .execute(conn)?,
+                    Some(word_count_guarantee) => {
+                        ::diesel::update(crate::schema::words_counts_guarantees::table)
+                            .filter(
+                                crate::schema::words_counts_guarantees::id
+                                    .eq(word_count_guarantee.id),
+                            )
+                            .set(
+                                crate::schema::words_counts_guarantees::count
+                                    .eq(word_count_guarantee.count + 1),
+                            )
+                            .execute(conn)?
+                    }
                     // new word => insert the word record
                     None => {
-                        let word_record = crate::models::idf::NewIdfWordGuarantee {
+                        let word_record = crate::models::words::NewWordCountGuarantee {
                             guarantee: record.guarantee.clone(),
                             kind: record.kind.clone(),
+                            parent: record.parent.clone(),
                             lang: record.lang.clone(),
                             word: record.word.clone(),
                             count: 1,
                         };
 
-                        ::diesel::insert_into(crate::schema::idf_words_guarantees::table)
+                        ::diesel::insert_into(crate::schema::words_counts_guarantees::table)
                             .values(&word_record)
                             .execute(conn)?
                     }
@@ -428,23 +523,23 @@ where
             .map_err(Into::into)
     }
 
-    pub async fn delete_idf_all_unchecked(&self, kind: &Hash) -> Result<()> {
+    pub async fn delete_word_all_unchecked(&self, kind: &Hash) -> Result<()> {
         self.connection
             .lock()
             .await
             .transaction::<(), ::diesel::result::Error, _>(|conn| {
-                ::diesel::delete(crate::schema::idf_words::table)
-                    .filter(crate::schema::idf_words::kind.eq(kind.to_string()))
+                ::diesel::delete(crate::schema::words::table)
+                    .filter(crate::schema::words::kind.eq(kind.to_string()))
                     .execute(conn)
                     .map(|_| ())?;
 
-                ::diesel::delete(crate::schema::idf_words_guarantees::table)
-                    .filter(crate::schema::idf_words_guarantees::kind.eq(kind.to_string()))
+                ::diesel::delete(crate::schema::words_counts::table)
+                    .filter(crate::schema::words_counts::kind.eq(kind.to_string()))
                     .execute(conn)
                     .map(|_| ())?;
 
-                ::diesel::delete(crate::schema::idf_logs::table)
-                    .filter(crate::schema::idf_logs::kind.eq(kind.to_string()))
+                ::diesel::delete(crate::schema::words_counts_guarantees::table)
+                    .filter(crate::schema::words_counts_guarantees::kind.eq(kind.to_string()))
                     .execute(conn)
                     .map(|_| ())?;
 

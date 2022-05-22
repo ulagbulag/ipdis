@@ -1,58 +1,24 @@
 use ipdis_api::{
     client::IpdisClient,
-    common::{Ipdis, KIND},
-    server::IpdisServer,
+    common::{GetWords, GetWordsCounts, GetWordsParent, Ipdis},
 };
-use ipdis_common::{GetWords, GetWordsCounts, GetWordsParent};
-use ipiis_api::{client::IpiisClient, common::Ipiis, server::IpiisServer};
+use ipiis_api::{client::IpiisClient, common::Ipiis};
 use ipis::{
-    core::{
-        anyhow::Result,
-        value::{
-            hash::Hash,
-            text::Text,
-            word::{Word, WordHash},
-        },
+    core::value::{
+        hash::Hash,
+        text::Text,
+        word::{Word, WordHash},
     },
     env::Infer,
     tokio,
 };
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    // deploy a server
-    let server = IpdisServer::genesis(5001).await?;
-    let server_account = {
-        let server: &IpiisServer = server.as_ref();
-        let account = server.account_me();
-
-        // register the environment variables
-        ::std::env::set_var("ipis_account_me", account.to_string());
-
-        account.account_ref()
-    };
-    tokio::spawn(async move { server.run().await });
-
-    // create a guarantor client
-    let client_guarantor = IpdisClient::infer().await;
-
+#[tokio::test]
+async fn test_create() {
     // create a client
-    let client = IpiisClient::genesis(None).await?;
-    let client_account = client.account_me().account_ref();
-    client
-        .set_account_primary(KIND.as_ref(), &server_account)
-        .await?;
-    client
-        .set_address(KIND.as_ref(), &server_account, &"127.0.0.1:5001".parse()?)
-        .await?;
-
-    // register the client as guarantee
-    {
-        // sign as guarantor
-        let guarantee = client.sign(server_account, client_account)?;
-
-        client_guarantor.add_guarantee_unchecked(&guarantee).await?;
-    };
+    let client = IpdisClient::infer().await;
+    let ipiis: &IpiisClient = client.as_ref();
+    let account = ipiis.account_me().account_ref();
 
     // create a sample word to be stored
     let kind = "ipdis-api-postgres-test";
@@ -72,16 +38,13 @@ async fn main() -> Result<()> {
     };
 
     // cleanup test data
-    client_guarantor
-        .delete_word_all_unchecked(&word.kind)
-        .await
-        .unwrap();
+    client.delete_word_all_unchecked(&word.kind).await.unwrap();
 
     // put the word in IPDIS (* 3 times)
     let count = 3u32;
     for _ in 0..count {
         // sign as guarantee
-        let word = client.sign(server_account, word).unwrap();
+        let word = ipiis.sign(account, word).unwrap();
 
         // put the word in IPDIS
         client.put_word_unchecked(&parent, &word).await.unwrap();
@@ -90,7 +53,8 @@ async fn main() -> Result<()> {
     // get the words
     let word_from_ipdis = client
         .get_word_latest_unchecked(None, &word)
-        .await?
+        .await
+        .unwrap()
         .unwrap();
     assert_eq!(&word_from_ipdis.data.data.data, &word);
 
@@ -107,14 +71,20 @@ async fn main() -> Result<()> {
         )
         .await
         .unwrap();
-    assert_eq!(&words_from_ipdis[0].data.data.data, &word);
+    assert_eq!(&words_from_ipdis[1].data.data.data, &word);
 
     // get the word counts
-    let count_from_ipdis = client.get_word_count_unchecked(None, &word, false).await?;
+    let count_from_ipdis = client
+        .get_word_count_unchecked(None, &word, false)
+        .await
+        .unwrap();
     assert_eq!(count_from_ipdis, count);
 
     // get the word counts of the account
-    let count_from_ipdis = client.get_word_count_unchecked(None, &word, true).await?;
+    let count_from_ipdis = client
+        .get_word_count_unchecked(None, &word, true)
+        .await
+        .unwrap();
     assert_eq!(count_from_ipdis, count);
 
     // get the parent's word counts
@@ -160,18 +130,14 @@ async fn main() -> Result<()> {
     );
 
     // cleanup test data
-    client_guarantor
-        .delete_guarantee_unchecked(&client_account)
-        .await?;
-    client_guarantor
-        .delete_word_all_unchecked(&word.kind)
-        .await?;
+    client.delete_word_all_unchecked(&word.kind).await.unwrap();
 
     // ensure that the guarantee client has been unregistered
     assert_eq!(
-        client.get_word_count_unchecked(None, &word, false).await?,
+        client
+            .get_word_count_unchecked(None, &word, false)
+            .await
+            .unwrap(),
         0,
     );
-
-    Ok(())
 }

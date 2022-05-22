@@ -29,7 +29,7 @@ table! {
 }
 
 table! {
-    idf_logs (id) {
+    words (id) {
         id -> Int4,
         nonce -> Uuid,
         guarantee -> Varchar,
@@ -39,15 +39,17 @@ table! {
         created_date -> Timestamp,
         expiration_date -> Nullable<Timestamp>,
         kind -> Varchar,
+        parent -> Varchar,
         lang -> Varchar,
         word -> Varchar,
     }
 }
 
 table! {
-    idf_words (id) {
+    words_counts (id) {
         id -> Int4,
         kind -> Varchar,
+        parent -> Varchar,
         lang -> Varchar,
         word -> Varchar,
         count -> Int8,
@@ -55,10 +57,11 @@ table! {
 }
 
 table! {
-    idf_words_guarantees (id) {
+    words_counts_guarantees (id) {
         id -> Int4,
         guarantee -> Varchar,
         kind -> Varchar,
+        parent -> Varchar,
         lang -> Varchar,
         word -> Varchar,
         count -> Int8,
@@ -68,7 +71,7 @@ table! {
 allow_tables_to_appear_in_same_query!(
     accounts_guarantees,
     dyn_paths,
-    idf_logs,
-    idf_words,
-    idf_words_guarantees,
+    words,
+    words_counts,
+    words_counts_guarantees,
 );

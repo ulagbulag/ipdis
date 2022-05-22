@@ -34,6 +34,12 @@ async fn test_create() {
         path,
     };
 
+    // cleanup test data
+    client
+        .delete_dyn_path_all_unchecked(&dyn_path.kind)
+        .await
+        .unwrap();
+
     // sign as guarantee
     let dyn_path = ipiis.sign(account, dyn_path).unwrap();
 

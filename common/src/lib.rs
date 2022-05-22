@@ -6,7 +6,7 @@ use ipis::{
         account::{AccountRef, GuaranteeSigned, GuarantorSigned},
         anyhow::{bail, Result},
         signed::IsSigned,
-        value::word::WordHash,
+        value::{hash::Hash, word::WordHash},
     },
     path::{DynPath, Path},
 };
@@ -61,35 +61,7 @@ pub trait Ipdis {
 
     async fn put_dyn_path_unchecked(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()>;
 
-    async fn get_idf_count(&self, word: &GuaranteeSigned<WordHash>) -> Result<usize> {
-        let guarantee = &word.guarantee.account;
-        let guarantor = &word.data.guarantor;
-        self.ensure_registered(guarantee, guarantor).await?;
-
-        self.get_idf_count_unchecked(&word.data).await
-    }
-
-    async fn get_idf_count_unchecked(&self, word: &WordHash) -> Result<usize>;
-
-    async fn get_idf_count_with_guarantee(
-        &self,
-        word: &GuaranteeSigned<WordHash>,
-    ) -> Result<usize> {
-        let guarantee = &word.guarantee.account;
-        let guarantor = &word.data.guarantor;
-        self.ensure_registered(guarantee, guarantor).await?;
-
-        self.get_idf_count_with_guarantee_unchecked(guarantee, &word.data)
-            .await
-    }
-
-    async fn get_idf_count_with_guarantee_unchecked(
-        &self,
-        guarantee: &AccountRef,
-        word: &WordHash,
-    ) -> Result<usize>;
-
-    async fn get_idf_log(
+    async fn get_word_latest(
         &self,
         word: &GuaranteeSigned<WordHash>,
     ) -> Result<Option<GuarantorSigned<WordHash>>> {
@@ -97,53 +69,104 @@ pub trait Ipdis {
         let guarantor = &word.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
-        self.get_idf_log_unchecked(Some(guarantee), &word.data)
+        self.get_word_latest_unchecked(Some(guarantee), &word.data)
             .await
     }
 
-    async fn get_idf_log_unchecked(
+    async fn get_word_latest_unchecked(
         &self,
         guarantee: Option<&AccountRef>,
         word: &WordHash,
     ) -> Result<Option<GuarantorSigned<WordHash>>> {
-        let query = GetIdfWords {
+        let query = GetWords {
             word: *word,
+            parent: GetWordsParent::None,
             start_index: 0,
             end_index: 1,
         };
 
-        self.get_idf_logs_unchecked(guarantee, &query)
+        self.get_word_many_unchecked(guarantee, &query)
             .await
             .map(|mut records| records.pop())
     }
 
-    async fn get_idf_logs(
+    async fn get_word_many(
         &self,
-        query: &GuaranteeSigned<GetIdfWords>,
+        query: &GuaranteeSigned<GetWords>,
     ) -> Result<Vec<GuarantorSigned<WordHash>>> {
         let guarantee = &query.guarantee.account;
         let guarantor = &query.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
-        self.get_idf_logs_unchecked(Some(guarantee), &query.data)
+        self.get_word_many_unchecked(Some(guarantee), &query.data)
             .await
     }
 
-    async fn get_idf_logs_unchecked(
+    async fn get_word_many_unchecked(
         &self,
         guarantee: Option<&AccountRef>,
-        query: &GetIdfWords,
+        query: &GetWords,
     ) -> Result<Vec<GuarantorSigned<WordHash>>>;
 
-    async fn put_idf_log(&self, word: &GuaranteeSigned<WordHash>) -> Result<()> {
+    async fn get_word_count(&self, word: &GuaranteeSigned<WordHash>, owned: bool) -> Result<u32> {
         let guarantee = &word.guarantee.account;
         let guarantor = &word.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
-        self.put_idf_log_unchecked(word).await
+        self.get_word_count_unchecked(Some(guarantee), &word.data, owned)
+            .await
     }
 
-    async fn put_idf_log_unchecked(&self, word: &GuaranteeSigned<WordHash>) -> Result<()>;
+    async fn get_word_count_unchecked(
+        &self,
+        guarantee: Option<&AccountRef>,
+        word: &WordHash,
+        owned: bool,
+    ) -> Result<u32> {
+        let query = GetWordsCounts {
+            word: *word,
+            parent: false,
+            owned,
+            start_index: 0,
+            end_index: 1,
+        };
+
+        self.get_word_count_many_unchecked(guarantee, &query)
+            .await
+            .map(|mut records| records.pop().map(|record| record.count).unwrap_or(0))
+    }
+
+    async fn get_word_count_many(
+        &self,
+        query: &GuaranteeSigned<GetWordsCounts>,
+    ) -> Result<Vec<GetWordsCountsOutput>> {
+        let guarantee = &query.guarantee.account;
+        let guarantor = &query.data.guarantor;
+        self.ensure_registered(guarantee, guarantor).await?;
+
+        self.get_word_count_many_unchecked(Some(guarantee), &query.data)
+            .await
+    }
+
+    async fn get_word_count_many_unchecked(
+        &self,
+        guarantee: Option<&AccountRef>,
+        query: &GetWordsCounts,
+    ) -> Result<Vec<GetWordsCountsOutput>>;
+
+    async fn put_word(&self, parent: &Hash, word: &GuaranteeSigned<WordHash>) -> Result<()> {
+        let guarantee = &word.guarantee.account;
+        let guarantor = &word.data.guarantor;
+        self.ensure_registered(guarantee, guarantor).await?;
+
+        self.put_word_unchecked(parent, word).await
+    }
+
+    async fn put_word_unchecked(
+        &self,
+        parent: &Hash,
+        word: &GuaranteeSigned<WordHash>,
+    ) -> Result<()>;
 }
 
 #[async_trait]
@@ -225,69 +248,55 @@ where
         Ok(())
     }
 
-    async fn get_idf_count_unchecked(&self, word: &WordHash) -> Result<usize> {
-        // next target
-        let target = self.get_account_primary(KIND.as_ref()).await?;
-
-        // external call
-        let (count,) = external_call!(
-            client: self,
-            target: KIND.as_ref() => &target,
-            request: crate::io => IdfCountGet,
-            sign: self.sign(target, *word)?,
-            inputs: { },
-            outputs: { count, },
-        );
-
-        // unpack response
-        count.try_into().map_err(Into::into)
-    }
-
-    async fn get_idf_count_with_guarantee_unchecked(
-        &self,
-        _guarantee: &AccountRef,
-        word: &WordHash,
-    ) -> Result<usize> {
-        // next target
-        let target = self.get_account_primary(KIND.as_ref()).await?;
-
-        // external call
-        let (count,) = external_call!(
-            client: self,
-            target: KIND.as_ref() => &target,
-            request: crate::io => IdfCountGetWithGuarantee,
-            sign: self.sign(target, *word)?,
-            inputs: { },
-            outputs: { count, },
-        );
-
-        // unpack response
-        count.try_into().map_err(Into::into)
-    }
-
-    async fn get_idf_logs_unchecked(
+    async fn get_word_many_unchecked(
         &self,
         _guarantee: Option<&AccountRef>,
-        query: &GetIdfWords,
+        query: &GetWords,
     ) -> Result<Vec<GuarantorSigned<WordHash>>> {
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // external call
-        let (logs,) = external_call!(
+        let (words,) = external_call!(
             client: self,
             target: KIND.as_ref() => &target,
-            request: crate::io => IdfLogGetMany,
+            request: crate::io => WordGetMany,
             sign: self.sign(target, *query)?,
             inputs: { },
-            outputs: { logs, },
+            outputs: { words, },
         );
 
         // unpack response
-        Ok(logs)
+        Ok(words)
     }
 
-    async fn put_idf_log_unchecked(&self, word: &GuaranteeSigned<WordHash>) -> Result<()> {
+    async fn get_word_count_many_unchecked(
+        &self,
+        _guarantee: Option<&AccountRef>,
+        query: &GetWordsCounts,
+    ) -> Result<Vec<GetWordsCountsOutput>> {
+        // next target
+        let target = self.get_account_primary(KIND.as_ref()).await?;
+
+        // external call
+        let (counts,) = external_call!(
+            client: self,
+            target: KIND.as_ref() => &target,
+            request: crate::io => WordCountGetMany,
+            sign: self.sign(target, *query)?,
+            inputs: { },
+            outputs: { counts, },
+        );
+
+        // unpack response
+        Ok(counts)
+    }
+
+    async fn put_word_unchecked(
+        &self,
+        parent: &Hash,
+        word: &GuaranteeSigned<WordHash>,
+    ) -> Result<()> {
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
@@ -295,9 +304,11 @@ where
         let () = external_call!(
             client: self,
             target: KIND.as_ref() => &target,
-            request: crate::io => IdfLogPut,
+            request: crate::io => WordPut,
             sign: *word,
-            inputs: { },
+            inputs: {
+                parent: *parent,
+            },
             outputs: { },
         );
 
@@ -330,38 +341,31 @@ define_io! {
         output_sign: GuarantorSigned<DynPath<Path>>,
         generics: { },
     },
-    IdfCountGet {
+    WordGetMany {
         inputs: { },
-        input_sign: GuaranteeSigned<WordHash>,
+        input_sign: GuaranteeSigned<GetWords>,
         outputs: {
-            count: u32,
+            words: Vec<GuarantorSigned<WordHash>>,
         },
-        output_sign: GuarantorSigned<WordHash>,
+        output_sign: GuarantorSigned<GetWords>,
         generics: { },
     },
-    IdfCountGetWithGuarantee {
-        inputs: { },
-        input_sign: GuaranteeSigned<WordHash>,
-        outputs: {
-            count: u32,
+    WordPut {
+        inputs: {
+            parent: Hash,
         },
-        output_sign: GuarantorSigned<WordHash>,
-        generics: { },
-    },
-    IdfLogGetMany {
-        inputs: { },
-        input_sign: GuaranteeSigned<GetIdfWords>,
-        outputs: {
-            logs: Vec<GuarantorSigned<WordHash>>,
-        },
-        output_sign: GuarantorSigned<GetIdfWords>,
-        generics: { },
-    },
-    IdfLogPut {
-        inputs: { },
         input_sign: GuaranteeSigned<WordHash>,
         outputs: { },
         output_sign: GuarantorSigned<WordHash>,
+        generics: { },
+    },
+    WordCountGetMany {
+        inputs: { },
+        input_sign: GuaranteeSigned<GetWordsCounts>,
+        outputs: {
+            counts: Vec<GetWordsCountsOutput>,
+        },
+        output_sign: GuarantorSigned<GetWordsCounts>,
         generics: { },
     },
 }
@@ -369,13 +373,49 @@ define_io! {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Archive, Serialize, Deserialize)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(CheckBytes, Debug, PartialEq))]
-pub struct GetIdfWords {
+pub struct GetWords {
     pub word: WordHash,
+    pub parent: GetWordsParent,
+    /// inclusive left bound
     pub start_index: u32,
+    /// exclusive right bound
     pub end_index: u32,
 }
 
-impl IsSigned for GetIdfWords {}
+impl IsSigned for GetWords {}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Archive, Serialize, Deserialize)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(CheckBytes, Debug, PartialEq))]
+pub enum GetWordsParent {
+    None,
+    Duplicated,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Archive, Serialize, Deserialize)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(CheckBytes, Debug, PartialEq))]
+pub struct GetWordsCounts {
+    pub word: WordHash,
+    pub parent: bool,
+    pub owned: bool,
+    /// inclusive left bound
+    pub start_index: u32,
+    /// exclusive right bound
+    pub end_index: u32,
+}
+
+impl IsSigned for GetWordsCounts {}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Archive, Serialize, Deserialize)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(CheckBytes, Debug, PartialEq))]
+pub struct GetWordsCountsOutput {
+    pub word: WordHash,
+    pub count: u32,
+}
+
+impl IsSigned for GetWordsCountsOutput {}
 
 ::ipis::lazy_static::lazy_static! {
     pub static ref KIND: Option<::ipis::core::value::hash::Hash> = Some(
