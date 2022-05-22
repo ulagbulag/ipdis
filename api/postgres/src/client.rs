@@ -104,6 +104,7 @@ where
         }
 
         crate::schema::accounts_guarantees::table
+            .limit(1)
             .filter(crate::schema::accounts_guarantees::guarantee.eq(guarantee.to_string()))
             .filter(crate::schema::accounts_guarantees::guarantor.eq(guarantor.to_string()))
             .filter(crate::schema::accounts_guarantees::created_date.lt(now))
@@ -155,6 +156,8 @@ where
         let guarantee = guarantee.unwrap_or(&guarantor);
 
         let mut records: Vec<crate::models::dyn_paths::DynPath> = crate::schema::dyn_paths::table
+            .order(crate::schema::dyn_paths::created_date.desc())
+            .limit(1)
             .filter(crate::schema::dyn_paths::guarantee.eq(guarantee.to_string()))
             .filter(crate::schema::dyn_paths::guarantor.eq(guarantor.to_string()))
             .filter(crate::schema::dyn_paths::created_date.lt(now))

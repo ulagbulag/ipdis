@@ -71,7 +71,7 @@ async fn test_create() {
         )
         .await
         .unwrap();
-    assert_eq!(&words_from_ipdis[1].data.data.data, &word);
+    assert_eq!(&words_from_ipdis[0].data.data.data, &word);
 
     // get the word counts
     let count_from_ipdis = client
