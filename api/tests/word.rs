@@ -87,14 +87,14 @@ async fn test_create() {
 
     // get the word counts
     let count_from_ipdis = client
-        .get_word_count_unchecked(None, &word, false)
+        .get_word_count_unchecked(None, &word.key, false)
         .await
         .unwrap();
     assert_eq!(count_from_ipdis, count);
 
     // get the word counts of the account
     let count_from_ipdis = client
-        .get_word_count_unchecked(None, &word, true)
+        .get_word_count_unchecked(None, &word.key, true)
         .await
         .unwrap();
     assert_eq!(count_from_ipdis, count);
@@ -105,7 +105,7 @@ async fn test_create() {
             .get_word_count_many_unchecked(
                 None,
                 &GetWordsCounts {
-                    word: parent_word,
+                    word: parent_word.key,
                     parent: true,
                     owned: false,
                     start_index: 0,
@@ -126,7 +126,7 @@ async fn test_create() {
             .get_word_count_many_unchecked(
                 None,
                 &GetWordsCounts {
-                    word: parent_word,
+                    word: parent_word.key,
                     parent: true,
                     owned: true,
                     start_index: 0,
@@ -150,7 +150,7 @@ async fn test_create() {
     // ensure that the guarantee client has been unregistered
     assert_eq!(
         client
-            .get_word_count_unchecked(None, &word, false)
+            .get_word_count_unchecked(None, &word.key, false)
             .await
             .unwrap(),
         0,

@@ -333,23 +333,15 @@ where
                 .limit((query.end_index - query.start_index).into())
                 .filter(crate::schema::words_counts_guarantees::guarantee.eq(guarantee.to_string()))
                 .filter(
-                    crate::schema::words_counts_guarantees::namespace.eq(query
-                        .word
-                        .key
-                        .namespace
-                        .to_string()),
+                    crate::schema::words_counts_guarantees::namespace
+                        .eq(query.word.namespace.to_string()),
                 )
                 .filter(
-                    crate::schema::words_counts_guarantees::kind.eq(query
-                        .word
-                        .key
-                        .kind
-                        .to_string()),
+                    crate::schema::words_counts_guarantees::kind.eq(query.word.kind.to_string()),
                 )
                 .filter(
                     crate::schema::words_counts_guarantees::lang.eq(query
                         .word
-                        .key
                         .text
                         .lang
                         .to_string()),
@@ -359,7 +351,6 @@ where
                 sql.filter(
                     crate::schema::words_counts_guarantees::parent.eq(query
                         .word
-                        .key
                         .text
                         .msg
                         .to_string()),
@@ -369,7 +360,6 @@ where
                 sql.filter(
                     crate::schema::words_counts_guarantees::word.eq(query
                         .word
-                        .key
                         .text
                         .msg
                         .to_string()),
@@ -399,22 +389,16 @@ where
                 // TODO: improve performance (pagination: rather than offset & limit ?)
                 .offset(query.start_index.into())
                 .limit((query.end_index - query.start_index).into())
-                .filter(
-                    crate::schema::words_counts::namespace.eq(query.word.key.namespace.to_string()),
-                )
-                .filter(crate::schema::words_counts::kind.eq(query.word.key.kind.to_string()))
-                .filter(crate::schema::words_counts::lang.eq(query.word.key.text.lang.to_string()));
+                .filter(crate::schema::words_counts::namespace.eq(query.word.namespace.to_string()))
+                .filter(crate::schema::words_counts::kind.eq(query.word.kind.to_string()))
+                .filter(crate::schema::words_counts::lang.eq(query.word.text.lang.to_string()));
 
             let records: Vec<crate::models::words::WordCount> = if query.parent {
-                sql.filter(
-                    crate::schema::words_counts::parent.eq(query.word.key.text.msg.to_string()),
-                )
-                .get_results(&mut *self.connection.lock().await)?
+                sql.filter(crate::schema::words_counts::parent.eq(query.word.text.msg.to_string()))
+                    .get_results(&mut *self.connection.lock().await)?
             } else {
-                sql.filter(
-                    crate::schema::words_counts::word.eq(query.word.key.text.msg.to_string()),
-                )
-                .get_results(&mut *self.connection.lock().await)?
+                sql.filter(crate::schema::words_counts::word.eq(query.word.text.msg.to_string()))
+                    .get_results(&mut *self.connection.lock().await)?
             };
 
             records

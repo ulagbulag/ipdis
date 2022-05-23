@@ -109,7 +109,11 @@ pub trait Ipdis {
         query: &GetWords,
     ) -> Result<Vec<GuarantorSigned<WordHash>>>;
 
-    async fn get_word_count(&self, word: &GuaranteeSigned<WordHash>, owned: bool) -> Result<u32> {
+    async fn get_word_count(
+        &self,
+        word: &GuaranteeSigned<WordKeyHash>,
+        owned: bool,
+    ) -> Result<u32> {
         let guarantee = &word.guarantee.account;
         let guarantor = &word.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
@@ -121,7 +125,7 @@ pub trait Ipdis {
     async fn get_word_count_unchecked(
         &self,
         guarantee: Option<&AccountRef>,
-        word: &WordHash,
+        word: &WordKeyHash,
         owned: bool,
     ) -> Result<u32> {
         let query = GetWordsCounts {
@@ -397,7 +401,7 @@ pub enum GetWordsParent {
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(CheckBytes, Debug, PartialEq))]
 pub struct GetWordsCounts {
-    pub word: WordHash,
+    pub word: WordKeyHash,
     pub parent: bool,
     pub owned: bool,
     /// inclusive left bound
