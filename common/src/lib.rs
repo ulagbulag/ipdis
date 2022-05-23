@@ -416,11 +416,21 @@ impl IsSigned for GetWordsCounts {}
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(CheckBytes, Debug, PartialEq))]
 pub struct GetWordsCountsOutput {
-    pub word: WordKeyHash,
+    pub word: GetWordKeyHash,
     pub count: u32,
 }
 
 impl IsSigned for GetWordsCountsOutput {}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Archive, Serialize, Deserialize)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(CheckBytes, Debug, PartialEq))]
+pub struct GetWordKeyHash {
+    pub key: WordKeyHash,
+    pub kind: Hash,
+}
+
+impl IsSigned for GetWordKeyHash {}
 
 ::ipis::lazy_static::lazy_static! {
     pub static ref KIND: Option<::ipis::core::value::hash::Hash> = Some(

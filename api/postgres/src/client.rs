@@ -2,7 +2,9 @@ use diesel::{
     dsl::now, BoolExpressionMethods, Connection, ExpressionMethods, PgConnection, QueryDsl,
     RunQueryDsl,
 };
-use ipdis_common::{GetWords, GetWordsCounts, GetWordsCountsOutput, GetWordsParent, Ipdis};
+use ipdis_common::{
+    GetWordKeyHash, GetWords, GetWordsCounts, GetWordsCountsOutput, GetWordsParent, Ipdis,
+};
 use ipiis_api::common::Ipiis;
 use ipis::{
     async_trait::async_trait,
@@ -259,8 +261,8 @@ where
                     .or(crate::schema::words::expiration_date.is_null()),
             )
             .filter(crate::schema::words::namespace.eq(query.word.key.namespace.to_string()))
-            .filter(crate::schema::words::kind.eq(query.word.key.kind.to_string()))
-            .filter(crate::schema::words::lang.eq(query.word.key.text.lang.to_string()));
+            .filter(crate::schema::words::lang.eq(query.word.key.text.lang.to_string()))
+            .filter(crate::schema::words::kind.eq(query.word.kind.to_string()));
 
         let records: Vec<crate::models::words::Word> = match query.parent {
             GetWordsParent::None => sql
@@ -298,12 +300,12 @@ where
                             data: WordHash {
                                 key: WordKeyHash {
                                     namespace: record.namespace.parse()?,
-                                    kind: record.kind.parse()?,
                                     text: TextHash {
                                         lang: record.lang.parse()?,
                                         msg: record.word.parse()?,
                                     },
                                 },
+                                kind: record.kind.parse()?,
                                 relpath: record.relpath,
                                 path: Path {
                                     value: record.path.parse()?,
@@ -337,9 +339,6 @@ where
                         .eq(query.word.namespace.to_string()),
                 )
                 .filter(
-                    crate::schema::words_counts_guarantees::kind.eq(query.word.kind.to_string()),
-                )
-                .filter(
                     crate::schema::words_counts_guarantees::lang.eq(query
                         .word
                         .text
@@ -371,13 +370,15 @@ where
                 .into_iter()
                 .map(|record| {
                     Ok(GetWordsCountsOutput {
-                        word: WordKeyHash {
-                            namespace: record.namespace.parse()?,
-                            kind: record.kind.parse()?,
-                            text: TextHash {
-                                lang: record.lang.parse()?,
-                                msg: record.word.parse()?,
+                        word: GetWordKeyHash {
+                            key: WordKeyHash {
+                                namespace: record.namespace.parse()?,
+                                text: TextHash {
+                                    lang: record.lang.parse()?,
+                                    msg: record.word.parse()?,
+                                },
                             },
+                            kind: record.kind.parse()?,
                         },
                         count: record.count.try_into()?,
                     })
@@ -390,7 +391,6 @@ where
                 .offset(query.start_index.into())
                 .limit((query.end_index - query.start_index).into())
                 .filter(crate::schema::words_counts::namespace.eq(query.word.namespace.to_string()))
-                .filter(crate::schema::words_counts::kind.eq(query.word.kind.to_string()))
                 .filter(crate::schema::words_counts::lang.eq(query.word.text.lang.to_string()));
 
             let records: Vec<crate::models::words::WordCount> = if query.parent {
@@ -405,13 +405,15 @@ where
                 .into_iter()
                 .map(|record| {
                     Ok(GetWordsCountsOutput {
-                        word: WordKeyHash {
-                            namespace: record.namespace.parse()?,
-                            kind: record.kind.parse()?,
-                            text: TextHash {
-                                lang: record.lang.parse()?,
-                                msg: record.word.parse()?,
+                        word: GetWordKeyHash {
+                            key: WordKeyHash {
+                                namespace: record.namespace.parse()?,
+                                text: TextHash {
+                                    lang: record.lang.parse()?,
+                                    msg: record.word.parse()?,
+                                },
                             },
+                            kind: record.kind.parse()?,
                         },
                         count: record.count.try_into()?,
                     })
@@ -436,10 +438,10 @@ where
             created_date: word.created_date.naive_utc(),
             expiration_date: word.expiration_date.map(|e| e.naive_utc()),
             namespace: word.data.key.namespace.to_string(),
-            kind: word.data.key.kind.to_string(),
             parent: parent.to_string(),
             lang: word.data.key.text.lang.to_string(),
             word: word.data.key.text.msg.to_string(),
+            kind: word.data.kind.to_string(),
             relpath: word.data.relpath,
             path: word.data.path.value.to_string(),
             len: word.data.path.len.try_into()?,

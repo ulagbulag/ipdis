@@ -25,9 +25,9 @@ async fn test_create() {
     let word = Word {
         key: WordKey {
             namespace: namespace.to_string(),
-            kind: kind.to_string(),
             text: Text::with_en_us("hello world"),
         },
+        kind: kind.to_string(),
         relpath: true,
         path: Path {
             value: "Gx1fwyQphUwVU5E2HRbx7H6t7QVZ8XsMzrFz6TnyxaC1"
