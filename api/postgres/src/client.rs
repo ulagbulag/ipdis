@@ -260,16 +260,15 @@ where
                     .ge(now)
                     .or(crate::schema::words::expiration_date.is_null()),
             )
-            .filter(crate::schema::words::namespace.eq(query.word.key.namespace.to_string()))
-            .filter(crate::schema::words::lang.eq(query.word.key.text.lang.to_string()))
-            .filter(crate::schema::words::kind.eq(query.word.kind.to_string()));
+            .filter(crate::schema::words::namespace.eq(query.word.namespace.to_string()))
+            .filter(crate::schema::words::lang.eq(query.word.text.lang.to_string()));
 
         let records: Vec<crate::models::words::Word> = match query.parent {
             GetWordsParent::None => sql
-                .filter(crate::schema::words::word.eq(query.word.key.text.msg.to_string()))
+                .filter(crate::schema::words::word.eq(query.word.text.msg.to_string()))
                 .get_results(&mut *self.connection.lock().await)?,
             GetWordsParent::Duplicated => sql
-                .filter(crate::schema::words::parent.eq(query.word.key.text.msg.to_string()))
+                .filter(crate::schema::words::parent.eq(query.word.text.msg.to_string()))
                 .get_results(&mut *self.connection.lock().await)?,
         };
 

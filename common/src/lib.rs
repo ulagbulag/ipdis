@@ -64,7 +64,7 @@ pub trait Ipdis {
 
     async fn get_word_latest(
         &self,
-        word: &GuaranteeSigned<WordHash>,
+        word: &GuaranteeSigned<WordKeyHash>,
     ) -> Result<Option<GuarantorSigned<WordHash>>> {
         let guarantee = &word.guarantee.account;
         let guarantor = &word.data.guarantor;
@@ -77,7 +77,7 @@ pub trait Ipdis {
     async fn get_word_latest_unchecked(
         &self,
         guarantee: Option<&AccountRef>,
-        word: &WordHash,
+        word: &WordKeyHash,
     ) -> Result<Option<GuarantorSigned<WordHash>>> {
         let query = GetWords {
             word: *word,
@@ -379,7 +379,7 @@ define_io! {
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(CheckBytes, Debug, PartialEq))]
 pub struct GetWords {
-    pub word: WordHash,
+    pub word: WordKeyHash,
     pub parent: GetWordsParent,
     /// inclusive left bound
     pub start_index: u32,

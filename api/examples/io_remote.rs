@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
 
     // get the words
     let word_from_ipdis = client
-        .get_word_latest_unchecked(None, &word)
+        .get_word_latest_unchecked(None, &word.key)
         .await?
         .unwrap();
     assert_eq!(&word_from_ipdis.data.data.data, &word);
@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
         .get_word_many_unchecked(
             None,
             &GetWords {
-                word: parent_word,
+                word: parent_word.key,
                 parent: GetWordsParent::Duplicated,
                 start_index: 0,
                 end_index: 1,

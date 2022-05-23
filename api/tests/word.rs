@@ -64,7 +64,7 @@ async fn test_create() {
 
     // get the words
     let word_from_ipdis = client
-        .get_word_latest_unchecked(None, &word)
+        .get_word_latest_unchecked(None, &word.key)
         .await
         .unwrap()
         .unwrap();
@@ -75,7 +75,7 @@ async fn test_create() {
         .get_word_many_unchecked(
             None,
             &GetWords {
-                word: parent_word,
+                word: parent_word.key,
                 parent: GetWordsParent::Duplicated,
                 start_index: 0,
                 end_index: 1,
