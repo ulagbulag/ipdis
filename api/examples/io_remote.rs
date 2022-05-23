@@ -8,14 +8,12 @@ use ipiis_api::{client::IpiisClient, common::Ipiis, server::IpiisServer};
 use ipis::{
     core::{
         anyhow::Result,
-        value::{
-            hash::Hash,
-            text::Text,
-            word::{Word, WordHash},
-        },
+        value::{hash::Hash, text::Text},
     },
     env::Infer,
+    path::Path,
     tokio,
+    word::{Word, WordHash, WordKey},
 };
 
 #[tokio::main]
@@ -46,6 +44,11 @@ async fn main() -> Result<()> {
         .set_address(KIND.as_ref(), &server_account, &"127.0.0.1:5001".parse()?)
         .await?;
 
+    // cleanup client registration
+    client_guarantor
+        .delete_guarantee_unchecked(&client_account)
+        .await?;
+
     // register the client as guarantee
     {
         // sign as guarantor
@@ -55,11 +58,22 @@ async fn main() -> Result<()> {
     };
 
     // create a sample word to be stored
+    let namespace = "ipdis-api-postgres-test";
     let kind = "ipdis-api-postgres-test";
     let parent = "";
     let word = Word {
-        kind: kind.to_string(),
-        text: Text::with_en_us("hello world"),
+        key: WordKey {
+            namespace: namespace.to_string(),
+            kind: kind.to_string(),
+            text: Text::with_en_us("hello world"),
+        },
+        relpath: true,
+        path: Path {
+            value: "Gx1fwyQphUwVU5E2HRbx7H6t7QVZ8XsMzrFz6TnyxaC1"
+                .parse()
+                .unwrap(),
+            len: 13,
+        },
     };
 
     // make it hash
@@ -67,13 +81,13 @@ async fn main() -> Result<()> {
     let parent = Hash::with_str(parent);
     let parent_word = {
         let mut word = word;
-        word.text.msg = parent;
+        word.key.text.msg = parent;
         word
     };
 
     // cleanup test data
     client_guarantor
-        .delete_word_all_unchecked(&word.kind)
+        .delete_word_all_unchecked(&word.key.namespace)
         .await
         .unwrap();
 
@@ -164,12 +178,14 @@ async fn main() -> Result<()> {
         .delete_guarantee_unchecked(&client_account)
         .await?;
     client_guarantor
-        .delete_word_all_unchecked(&word.kind)
+        .delete_word_all_unchecked(&word.key.namespace)
         .await?;
 
     // ensure that the guarantee client has been unregistered
     assert_eq!(
-        client.get_word_count_unchecked(None, &word, false).await?,
+        client_guarantor
+            .get_word_count_unchecked(None, &word, false)
+            .await?,
         0,
     );
 

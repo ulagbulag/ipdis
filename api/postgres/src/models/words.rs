@@ -12,10 +12,14 @@ pub struct Word {
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
     // -- METADATA END --
+    pub namespace: String,
     pub kind: String,
     pub parent: String,
     pub lang: String,
     pub word: String,
+    pub relpath: bool,
+    pub path: String,
+    pub len: i64,
 }
 
 #[derive(Insertable)]
@@ -30,15 +34,20 @@ pub struct NewWord {
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
     // -- METADATA END --
+    pub namespace: String,
     pub kind: String,
     pub parent: String,
     pub lang: String,
     pub word: String,
+    pub relpath: bool,
+    pub path: String,
+    pub len: i64,
 }
 
 #[derive(Debug, Queryable)]
 pub struct WordCount {
     pub id: i32,
+    pub namespace: String,
     pub kind: String,
     pub parent: String,
     pub lang: String,
@@ -49,6 +58,7 @@ pub struct WordCount {
 #[derive(Insertable)]
 #[diesel(table_name = crate::schema::words_counts)]
 pub struct NewWordCount {
+    pub namespace: String,
     pub kind: String,
     pub parent: String,
     pub lang: String,
@@ -60,6 +70,7 @@ pub struct NewWordCount {
 pub struct WordCountGuarantee {
     pub id: i32,
     pub guarantee: String,
+    pub namespace: String,
     pub kind: String,
     pub parent: String,
     pub lang: String,
@@ -71,6 +82,7 @@ pub struct WordCountGuarantee {
 #[diesel(table_name = crate::schema::words_counts_guarantees)]
 pub struct NewWordCountGuarantee {
     pub guarantee: String,
+    pub namespace: String,
     pub kind: String,
     pub parent: String,
     pub lang: String,

@@ -21,6 +21,7 @@ table! {
         guarantor_signature -> Varchar,
         created_date -> Timestamp,
         expiration_date -> Nullable<Timestamp>,
+        namespace -> Varchar,
         kind -> Varchar,
         word -> Varchar,
         path -> Varchar,
@@ -38,16 +39,21 @@ table! {
         guarantor_signature -> Varchar,
         created_date -> Timestamp,
         expiration_date -> Nullable<Timestamp>,
+        namespace -> Varchar,
         kind -> Varchar,
         parent -> Varchar,
         lang -> Varchar,
         word -> Varchar,
+        relpath -> Bool,
+        path -> Varchar,
+        len -> Int8,
     }
 }
 
 table! {
     words_counts (id) {
         id -> Int4,
+        namespace -> Varchar,
         kind -> Varchar,
         parent -> Varchar,
         lang -> Varchar,
@@ -60,6 +66,7 @@ table! {
     words_counts_guarantees (id) {
         id -> Int4,
         guarantee -> Varchar,
+        namespace -> Varchar,
         kind -> Varchar,
         parent -> Varchar,
         lang -> Varchar,

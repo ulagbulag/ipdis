@@ -10,27 +10,33 @@ CREATE TABLE words (
   created_date TIMESTAMP NOT NULL,
   expiration_date TIMESTAMP,
   -- METADATA END --
+  namespace SHA256HASH NOT NULL,
   kind SHA256HASH NOT NULL,
   parent SHA256HASH NOT NULL,
   lang SHA256HASH NOT NULL,
-  word SHA256HASH NOT NULL
+  word SHA256HASH NOT NULL,
+  relpath BOOLEAN NOT NULL,
+  path SHA256HASH NOT NULL,
+  len BIGINT NOT NULL
 );
 CREATE TABLE words_counts (
   id SERIAL PRIMARY KEY,
+  namespace SHA256HASH NOT NULL,
   kind SHA256HASH NOT NULL,
   parent SHA256HASH NOT NULL,
   lang SHA256HASH NOT NULL,
   word SHA256HASH NOT NULL,
   count BIGINT NOT NULL,
-  UNIQUE (kind, lang, word)
+  UNIQUE (namespace, parent, kind, lang, word)
 );
 CREATE TABLE words_counts_guarantees (
   id SERIAL PRIMARY KEY,
   guarantee ACCOUNT NOT NULL,
+  namespace SHA256HASH NOT NULL,
   kind SHA256HASH NOT NULL,
   parent SHA256HASH NOT NULL,
   lang SHA256HASH NOT NULL,
   word SHA256HASH NOT NULL,
   count BIGINT NOT NULL,
-  UNIQUE (guarantee, kind, lang, word)
+  UNIQUE (guarantee, namespace, parent, kind, lang, word)
 );

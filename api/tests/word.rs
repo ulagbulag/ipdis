@@ -4,13 +4,11 @@ use ipdis_api::{
 };
 use ipiis_api::{client::IpiisClient, common::Ipiis};
 use ipis::{
-    core::value::{
-        hash::Hash,
-        text::Text,
-        word::{Word, WordHash},
-    },
+    core::value::{hash::Hash, text::Text},
     env::Infer,
+    path::Path,
     tokio,
+    word::{Word, WordHash, WordKey},
 };
 
 #[tokio::test]
@@ -21,11 +19,22 @@ async fn test_create() {
     let account = ipiis.account_me().account_ref();
 
     // create a sample word to be stored
+    let namespace = "ipdis-api-postgres-test";
     let kind = "ipdis-api-postgres-test";
     let parent = "";
     let word = Word {
-        kind: kind.to_string(),
-        text: Text::with_en_us("hello world"),
+        key: WordKey {
+            namespace: namespace.to_string(),
+            kind: kind.to_string(),
+            text: Text::with_en_us("hello world"),
+        },
+        relpath: true,
+        path: Path {
+            value: "Gx1fwyQphUwVU5E2HRbx7H6t7QVZ8XsMzrFz6TnyxaC1"
+                .parse()
+                .unwrap(),
+            len: 13,
+        },
     };
 
     // make it hash
@@ -33,12 +42,15 @@ async fn test_create() {
     let parent = Hash::with_str(parent);
     let parent_word = {
         let mut word = word;
-        word.text.msg = parent;
+        word.key.text.msg = parent;
         word
     };
 
     // cleanup test data
-    client.delete_word_all_unchecked(&word.kind).await.unwrap();
+    client
+        .delete_word_all_unchecked(&word.key.namespace)
+        .await
+        .unwrap();
 
     // put the word in IPDIS (* 3 times)
     let count = 3u32;
@@ -130,7 +142,10 @@ async fn test_create() {
     );
 
     // cleanup test data
-    client.delete_word_all_unchecked(&word.kind).await.unwrap();
+    client
+        .delete_word_all_unchecked(&word.key.namespace)
+        .await
+        .unwrap();
 
     // ensure that the guarantee client has been unregistered
     assert_eq!(

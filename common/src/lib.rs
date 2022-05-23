@@ -6,9 +6,10 @@ use ipis::{
         account::{AccountRef, GuaranteeSigned, GuarantorSigned},
         anyhow::{bail, Result},
         signed::IsSigned,
-        value::{hash::Hash, word::WordHash},
+        value::hash::Hash,
     },
     path::{DynPath, Path},
+    word::{WordHash, WordKeyHash},
 };
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -411,7 +412,7 @@ impl IsSigned for GetWordsCounts {}
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(CheckBytes, Debug, PartialEq))]
 pub struct GetWordsCountsOutput {
-    pub word: WordHash,
+    pub word: WordKeyHash,
     pub count: u32,
 }
 

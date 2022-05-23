@@ -12,6 +12,7 @@ pub struct DynPath {
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
     // -- METADATA END --
+    pub namespace: String,
     pub kind: String,
     pub word: String,
     pub path: String,
@@ -30,6 +31,7 @@ pub struct NewDynPath {
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
     // -- METADATA END --
+    pub namespace: String,
     pub kind: String,
     pub word: String,
     pub path: String,

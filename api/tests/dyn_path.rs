@@ -24,11 +24,13 @@ async fn test_create() {
     };
 
     // create a pair of kind & word to refer to a path
+    let namespace = "ipdis-api-postgres-test";
     let kind = "ipdis-api-postgres-test";
     let word = "my model";
 
     // create a dynamic path
     let dyn_path = DynPath {
+        namespace: Hash::with_str(namespace),
         kind: Hash::with_str(kind),
         word: Hash::with_str(word),
         path,
@@ -56,7 +58,7 @@ async fn test_create() {
 
     // cleanup test data
     client
-        .delete_dyn_path_all_unchecked(&dyn_path.kind)
+        .delete_dyn_path_all_unchecked(&dyn_path.namespace)
         .await
         .unwrap()
 }

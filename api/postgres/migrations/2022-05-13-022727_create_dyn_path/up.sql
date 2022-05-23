@@ -10,6 +10,7 @@ CREATE TABLE dyn_paths (
   created_date TIMESTAMP NOT NULL,
   expiration_date TIMESTAMP,
   -- METADATA END --
+  namespace SHA256HASH NOT NULL,
   kind SHA256HASH NOT NULL,
   word SHA256HASH NOT NULL,
   path SHA256HASH NOT NULL,

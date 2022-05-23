@@ -10,11 +10,12 @@ use ipis::{
         account::{AccountRef, GuaranteeSigned, GuarantorSigned, Identity},
         anyhow::{bail, Result},
         metadata::Metadata,
-        value::{chrono::NaiveDateTime, hash::Hash, text::TextHash, uuid::Uuid, word::WordHash},
+        value::{chrono::NaiveDateTime, hash::Hash, text::TextHash, uuid::Uuid},
     },
     env::{self, Infer},
     path::{DynPath, Path},
     tokio::sync::Mutex,
+    word::{WordHash, WordKeyHash},
 };
 
 pub type IpdisClient = IpdisClientInner<::ipiis_api::client::IpiisClient>;
@@ -166,6 +167,7 @@ where
                     .ge(now)
                     .or(crate::schema::dyn_paths::expiration_date.is_null()),
             )
+            .filter(crate::schema::dyn_paths::namespace.eq(path.namespace.to_string()))
             .filter(crate::schema::dyn_paths::kind.eq(path.kind.to_string()))
             .filter(crate::schema::dyn_paths::word.eq(path.word.to_string()))
             .get_results(&mut *self.connection.lock().await)?;
@@ -191,6 +193,7 @@ where
                         expiration_date: record.expiration_date.map(|e| NaiveDateTime(e).to_utc()),
                         guarantor: record.guarantor.parse()?,
                         data: DynPath {
+                            namespace: record.namespace.parse()?,
                             kind: record.kind.parse()?,
                             word: record.word.parse()?,
                             path: ::ipis::path::Path {
@@ -216,6 +219,7 @@ where
             guarantor_signature: path.guarantor.signature.to_string(),
             created_date: path.created_date.naive_utc(),
             expiration_date: path.expiration_date.map(|e| e.naive_utc()),
+            namespace: path.data.namespace.to_string(),
             kind: path.data.kind.to_string(),
             word: path.data.word.to_string(),
             path: path.data.path.value.to_string(),
@@ -254,15 +258,16 @@ where
                     .ge(now)
                     .or(crate::schema::words::expiration_date.is_null()),
             )
-            .filter(crate::schema::words::kind.eq(query.word.kind.to_string()))
-            .filter(crate::schema::words::lang.eq(query.word.text.lang.to_string()));
+            .filter(crate::schema::words::namespace.eq(query.word.key.namespace.to_string()))
+            .filter(crate::schema::words::kind.eq(query.word.key.kind.to_string()))
+            .filter(crate::schema::words::lang.eq(query.word.key.text.lang.to_string()));
 
         let records: Vec<crate::models::words::Word> = match query.parent {
             GetWordsParent::None => sql
-                .filter(crate::schema::words::word.eq(query.word.text.msg.to_string()))
+                .filter(crate::schema::words::word.eq(query.word.key.text.msg.to_string()))
                 .get_results(&mut *self.connection.lock().await)?,
             GetWordsParent::Duplicated => sql
-                .filter(crate::schema::words::parent.eq(query.word.text.msg.to_string()))
+                .filter(crate::schema::words::parent.eq(query.word.key.text.msg.to_string()))
                 .get_results(&mut *self.connection.lock().await)?,
         };
 
@@ -291,10 +296,18 @@ where
                                 .map(|e| NaiveDateTime(e).to_utc()),
                             guarantor: record.guarantor.parse()?,
                             data: WordHash {
-                                kind: record.kind.parse()?,
-                                text: TextHash {
-                                    lang: record.lang.parse()?,
-                                    msg: record.word.parse()?,
+                                key: WordKeyHash {
+                                    namespace: record.namespace.parse()?,
+                                    kind: record.kind.parse()?,
+                                    text: TextHash {
+                                        lang: record.lang.parse()?,
+                                        msg: record.word.parse()?,
+                                    },
+                                },
+                                relpath: record.relpath,
+                                path: Path {
+                                    value: record.path.parse()?,
+                                    len: record.len.try_into()?,
                                 },
                             },
                         },
@@ -320,11 +333,23 @@ where
                 .limit((query.end_index - query.start_index).into())
                 .filter(crate::schema::words_counts_guarantees::guarantee.eq(guarantee.to_string()))
                 .filter(
-                    crate::schema::words_counts_guarantees::kind.eq(query.word.kind.to_string()),
+                    crate::schema::words_counts_guarantees::namespace.eq(query
+                        .word
+                        .key
+                        .namespace
+                        .to_string()),
+                )
+                .filter(
+                    crate::schema::words_counts_guarantees::kind.eq(query
+                        .word
+                        .key
+                        .kind
+                        .to_string()),
                 )
                 .filter(
                     crate::schema::words_counts_guarantees::lang.eq(query
                         .word
+                        .key
                         .text
                         .lang
                         .to_string()),
@@ -334,6 +359,7 @@ where
                 sql.filter(
                     crate::schema::words_counts_guarantees::parent.eq(query
                         .word
+                        .key
                         .text
                         .msg
                         .to_string()),
@@ -343,6 +369,7 @@ where
                 sql.filter(
                     crate::schema::words_counts_guarantees::word.eq(query
                         .word
+                        .key
                         .text
                         .msg
                         .to_string()),
@@ -354,7 +381,8 @@ where
                 .into_iter()
                 .map(|record| {
                     Ok(GetWordsCountsOutput {
-                        word: WordHash {
+                        word: WordKeyHash {
+                            namespace: record.namespace.parse()?,
                             kind: record.kind.parse()?,
                             text: TextHash {
                                 lang: record.lang.parse()?,
@@ -371,22 +399,30 @@ where
                 // TODO: improve performance (pagination: rather than offset & limit ?)
                 .offset(query.start_index.into())
                 .limit((query.end_index - query.start_index).into())
-                .filter(crate::schema::words_counts::kind.eq(query.word.kind.to_string()))
-                .filter(crate::schema::words_counts::lang.eq(query.word.text.lang.to_string()));
+                .filter(
+                    crate::schema::words_counts::namespace.eq(query.word.key.namespace.to_string()),
+                )
+                .filter(crate::schema::words_counts::kind.eq(query.word.key.kind.to_string()))
+                .filter(crate::schema::words_counts::lang.eq(query.word.key.text.lang.to_string()));
 
             let records: Vec<crate::models::words::WordCount> = if query.parent {
-                sql.filter(crate::schema::words_counts::parent.eq(query.word.text.msg.to_string()))
-                    .get_results(&mut *self.connection.lock().await)?
+                sql.filter(
+                    crate::schema::words_counts::parent.eq(query.word.key.text.msg.to_string()),
+                )
+                .get_results(&mut *self.connection.lock().await)?
             } else {
-                sql.filter(crate::schema::words_counts::word.eq(query.word.text.msg.to_string()))
-                    .get_results(&mut *self.connection.lock().await)?
+                sql.filter(
+                    crate::schema::words_counts::word.eq(query.word.key.text.msg.to_string()),
+                )
+                .get_results(&mut *self.connection.lock().await)?
             };
 
             records
                 .into_iter()
                 .map(|record| {
                     Ok(GetWordsCountsOutput {
-                        word: WordHash {
+                        word: WordKeyHash {
+                            namespace: record.namespace.parse()?,
                             kind: record.kind.parse()?,
                             text: TextHash {
                                 lang: record.lang.parse()?,
@@ -415,10 +451,14 @@ where
             guarantor_signature: word.guarantor.signature.to_string(),
             created_date: word.created_date.naive_utc(),
             expiration_date: word.expiration_date.map(|e| e.naive_utc()),
-            kind: word.data.kind.to_string(),
+            namespace: word.data.key.namespace.to_string(),
+            kind: word.data.key.kind.to_string(),
             parent: parent.to_string(),
-            lang: word.data.text.lang.to_string(),
-            word: word.data.text.msg.to_string(),
+            lang: word.data.key.text.lang.to_string(),
+            word: word.data.key.text.msg.to_string(),
+            relpath: word.data.relpath,
+            path: word.data.path.value.to_string(),
+            len: word.data.path.len.try_into()?,
         };
 
         self.connection
@@ -432,6 +472,7 @@ where
 
                 // check whether word exists
                 match crate::schema::words_counts::table
+                    .filter(crate::schema::words_counts::namespace.eq(&record.namespace))
                     .filter(crate::schema::words_counts::kind.eq(&record.kind))
                     .filter(crate::schema::words_counts::parent.eq(&record.parent))
                     .filter(crate::schema::words_counts::lang.eq(&record.lang))
@@ -447,6 +488,7 @@ where
                     // new word => insert the word record
                     None => {
                         let word_record = crate::models::words::NewWordCount {
+                            namespace: record.namespace.clone(),
                             kind: record.kind.clone(),
                             parent: record.parent.clone(),
                             lang: record.lang.clone(),
@@ -487,6 +529,7 @@ where
                     None => {
                         let word_record = crate::models::words::NewWordCountGuarantee {
                             guarantee: record.guarantee.clone(),
+                            namespace: record.namespace.clone(),
                             kind: record.kind.clone(),
                             parent: record.parent.clone(),
                             lang: record.lang.clone(),
@@ -518,31 +561,33 @@ where
             .map_err(Into::into)
     }
 
-    pub async fn delete_dyn_path_all_unchecked(&self, kind: &Hash) -> Result<()> {
+    pub async fn delete_dyn_path_all_unchecked(&self, namespace: &Hash) -> Result<()> {
         ::diesel::delete(crate::schema::dyn_paths::table)
-            .filter(crate::schema::dyn_paths::kind.eq(kind.to_string()))
+            .filter(crate::schema::dyn_paths::namespace.eq(namespace.to_string()))
             .execute(&mut *self.connection.lock().await)
             .map(|_| ())
             .map_err(Into::into)
     }
 
-    pub async fn delete_word_all_unchecked(&self, kind: &Hash) -> Result<()> {
+    pub async fn delete_word_all_unchecked(&self, namespace: &Hash) -> Result<()> {
         self.connection
             .lock()
             .await
             .transaction::<(), ::diesel::result::Error, _>(|conn| {
                 ::diesel::delete(crate::schema::words::table)
-                    .filter(crate::schema::words::kind.eq(kind.to_string()))
+                    .filter(crate::schema::words::namespace.eq(namespace.to_string()))
                     .execute(conn)
                     .map(|_| ())?;
 
                 ::diesel::delete(crate::schema::words_counts::table)
-                    .filter(crate::schema::words_counts::kind.eq(kind.to_string()))
+                    .filter(crate::schema::words_counts::namespace.eq(namespace.to_string()))
                     .execute(conn)
                     .map(|_| ())?;
 
                 ::diesel::delete(crate::schema::words_counts_guarantees::table)
-                    .filter(crate::schema::words_counts_guarantees::kind.eq(kind.to_string()))
+                    .filter(
+                        crate::schema::words_counts_guarantees::namespace.eq(namespace.to_string()),
+                    )
                     .execute(conn)
                     .map(|_| ())?;
 
