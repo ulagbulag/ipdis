@@ -27,7 +27,7 @@ CREATE TABLE words_counts (
   lang SHA256HASH NOT NULL,
   word SHA256HASH NOT NULL,
   count BIGINT NOT NULL,
-  UNIQUE (namespace, parent, kind, lang, word)
+  UNIQUE (namespace, kind, parent, lang, word)
 );
 CREATE TABLE words_counts_guarantees (
   id SERIAL PRIMARY KEY,
@@ -38,5 +38,5 @@ CREATE TABLE words_counts_guarantees (
   lang SHA256HASH NOT NULL,
   word SHA256HASH NOT NULL,
   count BIGINT NOT NULL,
-  UNIQUE (guarantee, namespace, parent, kind, lang, word)
+  UNIQUE (guarantee, namespace, kind, parent, lang, word)
 );
