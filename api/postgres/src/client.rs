@@ -110,7 +110,6 @@ where
             .limit(1)
             .filter(crate::schema::accounts_guarantees::guarantee.eq(guarantee.to_string()))
             .filter(crate::schema::accounts_guarantees::guarantor.eq(guarantor.to_string()))
-            .filter(crate::schema::accounts_guarantees::created_date.lt(now))
             .filter(
                 crate::schema::accounts_guarantees::expiration_date
                     .ge(now)
@@ -163,7 +162,6 @@ where
             .limit(1)
             .filter(crate::schema::dyn_paths::guarantee.eq(guarantee.to_string()))
             .filter(crate::schema::dyn_paths::guarantor.eq(guarantor.to_string()))
-            .filter(crate::schema::dyn_paths::created_date.lt(now))
             .filter(
                 crate::schema::dyn_paths::expiration_date
                     .ge(now)
@@ -254,7 +252,6 @@ where
             .limit((query.end_index - query.start_index).into())
             .filter(crate::schema::words::guarantee.eq(guarantee.to_string()))
             .filter(crate::schema::words::guarantor.eq(guarantor.to_string()))
-            .filter(crate::schema::words::created_date.lt(now))
             .filter(
                 crate::schema::words::expiration_date
                     .ge(now)
