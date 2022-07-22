@@ -70,7 +70,7 @@ impl IpdisServer {
             .await?;
 
         // handle data
-        let () = client.add_guarantee_unchecked(&sign_as_guarantee).await?;
+        client.add_guarantee_unchecked(&sign_as_guarantee).await?;
 
         // sign data
         let server: &IpiisServer = client.as_ref();
@@ -130,7 +130,7 @@ impl IpdisServer {
             .await?;
 
         // handle data
-        let () = client.put_dyn_path_unchecked(&sign_as_guarantee).await?;
+        client.put_dyn_path_unchecked(&sign_as_guarantee).await?;
 
         // sign data
         let server: &IpiisServer = client.as_ref();
@@ -226,7 +226,7 @@ impl IpdisServer {
         let parent = req.parent.into_owned().await?;
 
         // handle data
-        let () = client
+        client
             .put_word_unchecked(&parent, &sign_as_guarantee)
             .await?;
 

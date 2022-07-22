@@ -197,7 +197,7 @@ where
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // external call
-        let () = external_call!(
+        external_call!(
             client: self,
             target: KIND.as_ref() => &target,
             request: crate::io => GuaranteePut,
@@ -240,7 +240,7 @@ where
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // external call
-        let () = external_call!(
+        external_call!(
             client: self,
             target: KIND.as_ref() => &target,
             request: crate::io => DynPathPut,
@@ -306,7 +306,7 @@ where
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
         // external call
-        let () = external_call!(
+        external_call!(
             client: self,
             target: KIND.as_ref() => &target,
             request: crate::io => WordPut,
@@ -391,7 +391,7 @@ impl IsSigned for GetWords {}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Archive, Serialize, Deserialize)]
 #[archive(compare(PartialEq))]
-#[archive_attr(derive(CheckBytes, Debug, PartialEq))]
+#[archive_attr(derive(CheckBytes, Debug, PartialEq, Eq))]
 pub enum GetWordsParent {
     None,
     Duplicated,
