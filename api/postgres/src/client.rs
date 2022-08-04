@@ -96,8 +96,8 @@ where
         guarantee: &AccountRef,
         guarantor: &AccountRef,
     ) -> Result<()> {
-        let guarantor_now = self.ipiis.account_me().account_ref();
-        if guarantor != &guarantor_now {
+        let guarantor_now = self.ipiis.account_ref();
+        if guarantor != guarantor_now {
             bail!("failed to authenticate the guarantor")
         }
 
@@ -154,8 +154,8 @@ where
     where
         Path: Copy + Send + Sync,
     {
-        let guarantor = self.ipiis.account_me().account_ref();
-        let guarantee = guarantee.unwrap_or(&guarantor);
+        let guarantor = self.ipiis.account_ref();
+        let guarantee = guarantee.unwrap_or(guarantor);
 
         let mut records: Vec<crate::models::dyn_paths::DynPath> = crate::schema::dyn_paths::table
             .order(crate::schema::dyn_paths::created_date.desc())
@@ -242,8 +242,8 @@ where
             bail!("malformed index: end_index should be bigger than start_index")
         }
 
-        let guarantor = self.ipiis.account_me().account_ref();
-        let guarantee = guarantee.unwrap_or(&guarantor);
+        let guarantor = self.ipiis.account_ref();
+        let guarantee = guarantee.unwrap_or(guarantor);
 
         let sql = crate::schema::words::table
             .order(crate::schema::words::id.desc())
@@ -320,8 +320,8 @@ where
         guarantee: Option<&AccountRef>,
         query: &GetWordsCounts,
     ) -> Result<Vec<GetWordsCountsOutput>> {
-        let guarantor = self.ipiis.account_me().account_ref();
-        let guarantee = guarantee.unwrap_or(&guarantor);
+        let guarantor = self.ipiis.account_ref();
+        let guarantee = guarantee.unwrap_or(guarantor);
 
         if query.owned {
             let sql = crate::schema::words_counts_guarantees::table

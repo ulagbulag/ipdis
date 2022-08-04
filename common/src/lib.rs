@@ -184,8 +184,8 @@ where
         guarantee: &AccountRef,
         _guarantor: &AccountRef,
     ) -> Result<()> {
-        let guarantee_now = self.account_me().account_ref();
-        if guarantee != &guarantee_now {
+        let guarantee_now = self.account_ref();
+        if guarantee != guarantee_now {
             bail!("failed to authenticate the guarantee")
         }
 

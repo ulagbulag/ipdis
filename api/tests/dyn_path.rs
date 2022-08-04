@@ -13,7 +13,7 @@ async fn test_create() {
     // create a client
     let client = IpdisClient::infer().await;
     let ipiis: &IpiisClient = client.as_ref();
-    let account = ipiis.account_me().account_ref();
+    let account = ipiis.account_ref();
 
     // create a static path to be stored
     let path = Path {
@@ -43,7 +43,7 @@ async fn test_create() {
         .unwrap();
 
     // sign as guarantee
-    let dyn_path = ipiis.sign(account, dyn_path).unwrap();
+    let dyn_path = ipiis.sign(*account, dyn_path).unwrap();
 
     // put the path in IPDIS
     client.put_dyn_path_unchecked(&dyn_path).await.unwrap();

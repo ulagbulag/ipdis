@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     let server = IpdisServer::genesis(5001).await?;
     let server_account = {
         let server: &IpiisServer = server.as_ref();
-        let account = server.account_me();
+        let account = unsafe { server.account_me()? };
 
         // register the environment variables
         ::std::env::set_var("ipis_account_me", account.to_string());
@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
 
     // create a client
     let client = IpiisClient::genesis(None).await?;
-    let client_account = client.account_me().account_ref();
+    let client_account = client.account_ref();
     client
         .set_account_primary(KIND.as_ref(), &server_account)
         .await?;
@@ -46,13 +46,13 @@ async fn main() -> Result<()> {
 
     // cleanup client registration
     client_guarantor
-        .delete_guarantee_unchecked(&client_account)
+        .delete_guarantee_unchecked(client_account)
         .await?;
 
     // register the client as guarantee
     {
         // sign as guarantor
-        let guarantee = client.sign(server_account, client_account)?;
+        let guarantee = client.sign(server_account, *client_account)?;
 
         client_guarantor.add_guarantee_unchecked(&guarantee).await?;
     };
@@ -179,7 +179,7 @@ async fn main() -> Result<()> {
 
     // cleanup test data
     client_guarantor
-        .delete_guarantee_unchecked(&client_account)
+        .delete_guarantee_unchecked(client_account)
         .await?;
     client_guarantor
         .delete_word_all_unchecked(&word.key.namespace)

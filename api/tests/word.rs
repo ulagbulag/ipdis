@@ -16,7 +16,7 @@ async fn test_create() {
     // create a client
     let client = IpdisClient::infer().await;
     let ipiis: &IpiisClient = client.as_ref();
-    let account = ipiis.account_me().account_ref();
+    let account = ipiis.account_ref();
 
     // create a sample word to be stored
     let namespace = "ipdis-api-postgres-test";
@@ -56,7 +56,7 @@ async fn test_create() {
     let count = 3u32;
     for _ in 0..count {
         // sign as guarantee
-        let word = ipiis.sign(account, word).unwrap();
+        let word = ipiis.sign(*account, word).unwrap();
 
         // put the word in IPDIS
         client.put_word_unchecked(&parent, &word).await.unwrap();

@@ -1,5 +1,10 @@
 # IPDIS
 
+## Dependencies
+
+* postgresql
+    - Ubuntu: `libpq-dev`
+
 ## License
 
 * IPDIS Modules (`ipdis-modules-*`) and all other utilities are licensed under either of
