@@ -43,7 +43,7 @@ async fn test_create() {
         .unwrap();
 
     // sign as guarantee
-    let dyn_path = ipiis.sign(*account, dyn_path).unwrap();
+    let dyn_path = ipiis.sign_owned(*account, dyn_path).unwrap();
 
     // put the path in IPDIS
     client.put_dyn_path_unchecked(&dyn_path).await.unwrap();
@@ -54,7 +54,9 @@ async fn test_create() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(&dyn_path_from_ipdis.data.data.data, &dyn_path.data.data,);
+    // FIXME: precision issue (postgres != rust chrono)
+    // assert_eq!(&dyn_path_from_ipdis.metadata.data, &dyn_path.metadata,);
+    assert_eq!(&dyn_path_from_ipdis.data, &dyn_path.data,);
 
     // cleanup test data
     client

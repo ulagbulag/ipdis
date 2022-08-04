@@ -11,6 +11,7 @@ pub struct AccountsGuarantee {
     pub guarantor_signature: String,
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
+    pub hash: String,
     // -- METADATA END --
 }
 
@@ -25,5 +26,6 @@ pub struct NewAccountsGuarantee {
     pub guarantor_signature: String,
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
+    pub hash: String,
     // -- METADATA END --
 }

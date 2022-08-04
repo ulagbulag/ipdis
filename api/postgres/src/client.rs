@@ -11,6 +11,7 @@ use ipis::{
     core::{
         account::{AccountRef, GuaranteeSigned, GuarantorSigned, Identity},
         anyhow::{bail, Result},
+        data::Data,
         metadata::Metadata,
         value::{chrono::NaiveDateTime, hash::Hash, text::TextHash, uuid::Uuid},
     },
@@ -126,17 +127,21 @@ where
             })
     }
 
-    async fn add_guarantee_unchecked(&self, guarantee: &GuaranteeSigned<AccountRef>) -> Result<()> {
+    async fn add_guarantee_unchecked(
+        &self,
+        guarantee: &Data<GuaranteeSigned, AccountRef>,
+    ) -> Result<()> {
         let guarantee = self.ipiis.sign_as_guarantor(*guarantee)?;
 
         let record = crate::models::accounts_guarantees::NewAccountsGuarantee {
-            nonce: guarantee.nonce.0 .0,
-            guarantee: guarantee.guarantee.account.to_string(),
-            guarantor: guarantee.guarantor.account.to_string(),
-            guarantee_signature: guarantee.guarantee.signature.to_string(),
-            guarantor_signature: guarantee.guarantor.signature.to_string(),
-            created_date: guarantee.created_date.naive_utc(),
-            expiration_date: guarantee.expiration_date.map(|e| e.naive_utc()),
+            nonce: guarantee.metadata.nonce.0 .0,
+            guarantee: guarantee.metadata.guarantee.account.to_string(),
+            guarantor: guarantee.metadata.guarantor.account.to_string(),
+            guarantee_signature: guarantee.metadata.guarantee.signature.to_string(),
+            guarantor_signature: guarantee.metadata.guarantor.signature.to_string(),
+            created_date: guarantee.metadata.created_date.naive_utc(),
+            expiration_date: guarantee.metadata.expiration_date.map(|e| e.naive_utc()),
+            hash: guarantee.metadata.hash.to_string(),
         };
 
         ::diesel::insert_into(crate::schema::accounts_guarantees::table)
@@ -150,7 +155,7 @@ where
         &self,
         guarantee: Option<&AccountRef>,
         path: &DynPath<Path>,
-    ) -> Result<Option<GuarantorSigned<DynPath<::ipis::path::Path>>>>
+    ) -> Result<Option<Data<GuarantorSigned, DynPath<::ipis::path::Path>>>>
     where
         Path: Copy + Send + Sync,
     {
@@ -173,34 +178,39 @@ where
             .get_results(&mut *self.connection.lock().await)?;
 
         match records.pop() {
-            Some(record) => Ok(Some(GuarantorSigned {
-                guarantor: Identity {
-                    account: AccountRef {
-                        public_key: record.guarantor.parse()?,
-                    },
-                    signature: record.guarantor_signature.parse()?,
-                },
-                data: GuaranteeSigned {
-                    guarantee: Identity {
+            Some(record) => Ok(Some(Data {
+                metadata: GuarantorSigned {
+                    guarantor: Identity {
                         account: AccountRef {
-                            public_key: record.guarantee.parse()?,
+                            public_key: record.guarantor.parse()?,
                         },
-                        signature: record.guarantee_signature.parse()?,
+                        signature: record.guarantor_signature.parse()?,
                     },
-                    data: Metadata {
-                        nonce: Uuid(record.nonce).into(),
-                        created_date: NaiveDateTime(record.created_date).to_utc(),
-                        expiration_date: record.expiration_date.map(|e| NaiveDateTime(e).to_utc()),
-                        guarantor: record.guarantor.parse()?,
-                        data: DynPath {
-                            namespace: record.namespace.parse()?,
-                            kind: record.kind.parse()?,
-                            word: record.word.parse()?,
-                            path: ::ipis::path::Path {
-                                value: record.path.parse()?,
-                                len: record.len.try_into()?,
+                    data: GuaranteeSigned {
+                        guarantee: Identity {
+                            account: AccountRef {
+                                public_key: record.guarantee.parse()?,
                             },
+                            signature: record.guarantee_signature.parse()?,
                         },
+                        data: Metadata {
+                            nonce: Uuid(record.nonce).into(),
+                            created_date: NaiveDateTime(record.created_date).to_utc(),
+                            expiration_date: record
+                                .expiration_date
+                                .map(|e| NaiveDateTime(e).to_utc()),
+                            guarantor: record.guarantor.parse()?,
+                            hash: record.hash.parse()?,
+                        },
+                    },
+                },
+                data: DynPath {
+                    namespace: record.namespace.parse()?,
+                    kind: record.kind.parse()?,
+                    word: record.word.parse()?,
+                    path: ::ipis::path::Path {
+                        value: record.path.parse()?,
+                        len: record.len.try_into()?,
                     },
                 },
             })),
@@ -208,17 +218,21 @@ where
         }
     }
 
-    async fn put_dyn_path_unchecked(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()> {
+    async fn put_dyn_path_unchecked(
+        &self,
+        path: &Data<GuaranteeSigned, DynPath<Path>>,
+    ) -> Result<()> {
         let path = self.ipiis.sign_as_guarantor(*path)?;
 
         let record = crate::models::dyn_paths::NewDynPath {
-            nonce: path.nonce.0 .0,
-            guarantee: path.guarantee.account.to_string(),
-            guarantor: path.guarantor.account.to_string(),
-            guarantee_signature: path.guarantee.signature.to_string(),
-            guarantor_signature: path.guarantor.signature.to_string(),
-            created_date: path.created_date.naive_utc(),
-            expiration_date: path.expiration_date.map(|e| e.naive_utc()),
+            nonce: path.metadata.nonce.0 .0,
+            guarantee: path.metadata.guarantee.account.to_string(),
+            guarantor: path.metadata.guarantor.account.to_string(),
+            guarantee_signature: path.metadata.guarantee.signature.to_string(),
+            guarantor_signature: path.metadata.guarantor.signature.to_string(),
+            created_date: path.metadata.created_date.naive_utc(),
+            expiration_date: path.metadata.expiration_date.map(|e| e.naive_utc()),
+            hash: path.metadata.hash.to_string(),
             namespace: path.data.namespace.to_string(),
             kind: path.data.kind.to_string(),
             word: path.data.word.to_string(),
@@ -237,7 +251,7 @@ where
         &self,
         guarantee: Option<&AccountRef>,
         query: &GetWords,
-    ) -> Result<Vec<GuarantorSigned<WordHash>>> {
+    ) -> Result<Vec<Data<GuarantorSigned, WordHash>>> {
         if query.end_index <= query.start_index {
             bail!("malformed index: end_index should be bigger than start_index")
         }
@@ -272,42 +286,45 @@ where
         records
             .into_iter()
             .map(|record| {
-                Ok(GuarantorSigned {
-                    guarantor: Identity {
-                        account: AccountRef {
-                            public_key: record.guarantor.parse()?,
-                        },
-                        signature: record.guarantor_signature.parse()?,
-                    },
-                    data: GuaranteeSigned {
-                        guarantee: Identity {
+                Ok(Data {
+                    metadata: GuarantorSigned {
+                        guarantor: Identity {
                             account: AccountRef {
-                                public_key: record.guarantee.parse()?,
+                                public_key: record.guarantor.parse()?,
                             },
-                            signature: record.guarantee_signature.parse()?,
+                            signature: record.guarantor_signature.parse()?,
                         },
-                        data: Metadata {
-                            nonce: Uuid(record.nonce).into(),
-                            created_date: NaiveDateTime(record.created_date).to_utc(),
-                            expiration_date: record
-                                .expiration_date
-                                .map(|e| NaiveDateTime(e).to_utc()),
-                            guarantor: record.guarantor.parse()?,
-                            data: WordHash {
-                                key: WordKeyHash {
-                                    namespace: record.namespace.parse()?,
-                                    text: TextHash {
-                                        lang: record.lang.parse()?,
-                                        msg: record.word.parse()?,
-                                    },
+                        data: GuaranteeSigned {
+                            guarantee: Identity {
+                                account: AccountRef {
+                                    public_key: record.guarantee.parse()?,
                                 },
-                                kind: record.kind.parse()?,
-                                relpath: record.relpath,
-                                path: Path {
-                                    value: record.path.parse()?,
-                                    len: record.len.try_into()?,
-                                },
+                                signature: record.guarantee_signature.parse()?,
                             },
+                            data: Metadata {
+                                nonce: Uuid(record.nonce).into(),
+                                created_date: NaiveDateTime(record.created_date).to_utc(),
+                                expiration_date: record
+                                    .expiration_date
+                                    .map(|e| NaiveDateTime(e).to_utc()),
+                                guarantor: record.guarantor.parse()?,
+                                hash: record.hash.parse()?,
+                            },
+                        },
+                    },
+                    data: WordHash {
+                        key: WordKeyHash {
+                            namespace: record.namespace.parse()?,
+                            text: TextHash {
+                                lang: record.lang.parse()?,
+                                msg: record.word.parse()?,
+                            },
+                        },
+                        kind: record.kind.parse()?,
+                        relpath: record.relpath,
+                        path: Path {
+                            value: record.path.parse()?,
+                            len: record.len.try_into()?,
                         },
                     },
                 })
@@ -421,18 +438,19 @@ where
     async fn put_word_unchecked(
         &self,
         parent: &Hash,
-        word: &GuaranteeSigned<WordHash>,
+        word: &Data<GuaranteeSigned, WordHash>,
     ) -> Result<()> {
         let word = self.ipiis.sign_as_guarantor(*word)?;
 
         let record = crate::models::words::NewWord {
-            nonce: word.nonce.0 .0,
-            guarantee: word.guarantee.account.to_string(),
-            guarantor: word.guarantor.account.to_string(),
-            guarantee_signature: word.guarantee.signature.to_string(),
-            guarantor_signature: word.guarantor.signature.to_string(),
-            created_date: word.created_date.naive_utc(),
-            expiration_date: word.expiration_date.map(|e| e.naive_utc()),
+            nonce: word.metadata.nonce.0 .0,
+            guarantee: word.metadata.guarantee.account.to_string(),
+            guarantor: word.metadata.guarantor.account.to_string(),
+            guarantee_signature: word.metadata.guarantee.signature.to_string(),
+            guarantor_signature: word.metadata.guarantor.signature.to_string(),
+            created_date: word.metadata.created_date.naive_utc(),
+            expiration_date: word.metadata.expiration_date.map(|e| e.naive_utc()),
+            hash: word.metadata.hash.to_string(),
             namespace: word.data.key.namespace.to_string(),
             parent: parent.to_string(),
             lang: word.data.key.text.lang.to_string(),

@@ -11,6 +11,7 @@ pub struct Word {
     pub guarantor_signature: String,
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
+    pub hash: String,
     // -- METADATA END --
     pub namespace: String,
     pub kind: String,
@@ -33,6 +34,7 @@ pub struct NewWord {
     pub guarantor_signature: String,
     pub created_date: NaiveDateTime,
     pub expiration_date: Option<NaiveDateTime>,
+    pub hash: String,
     // -- METADATA END --
     pub namespace: String,
     pub kind: String,

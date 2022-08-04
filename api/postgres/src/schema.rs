@@ -8,6 +8,7 @@ table! {
         guarantor_signature -> Varchar,
         created_date -> Timestamp,
         expiration_date -> Nullable<Timestamp>,
+        hash -> Varchar,
     }
 }
 
@@ -21,6 +22,7 @@ table! {
         guarantor_signature -> Varchar,
         created_date -> Timestamp,
         expiration_date -> Nullable<Timestamp>,
+        hash -> Varchar,
         namespace -> Varchar,
         kind -> Varchar,
         word -> Varchar,
@@ -39,6 +41,7 @@ table! {
         guarantor_signature -> Varchar,
         created_date -> Timestamp,
         expiration_date -> Nullable<Timestamp>,
+        hash -> Varchar,
         namespace -> Varchar,
         kind -> Varchar,
         parent -> Varchar,

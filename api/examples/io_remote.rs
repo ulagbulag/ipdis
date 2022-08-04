@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
     // register the client as guarantee
     {
         // sign as guarantor
-        let guarantee = client.sign(server_account, *client_account)?;
+        let guarantee = client.sign_owned(server_account, *client_account)?;
 
         client_guarantor.add_guarantee_unchecked(&guarantee).await?;
     };
@@ -95,7 +95,7 @@ async fn main() -> Result<()> {
     let count = 3u32;
     for _ in 0..count {
         // sign as guarantee
-        let word = client.sign(server_account, word).unwrap();
+        let word = client.sign_owned(server_account, word).unwrap();
 
         // put the word in IPDIS
         client.put_word_unchecked(&parent, &word).await.unwrap();
@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
         .get_word_latest_unchecked(None, &word.key)
         .await?
         .unwrap();
-    assert_eq!(&word_from_ipdis.data.data.data, &word);
+    assert_eq!(&word_from_ipdis.data, &word);
 
     // get the parent's words
     let words_from_ipdis = client
@@ -121,7 +121,7 @@ async fn main() -> Result<()> {
         )
         .await
         .unwrap();
-    assert_eq!(&words_from_ipdis[0].data.data.data, &word);
+    assert_eq!(&words_from_ipdis[0].data, &word);
 
     // get the word counts
     let count_from_ipdis = client

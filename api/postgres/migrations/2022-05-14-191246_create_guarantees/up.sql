@@ -8,5 +8,6 @@ CREATE TABLE accounts_guarantees (
   guarantee_signature SIGNATURE NOT NULL UNIQUE,
   guarantor_signature SIGNATURE NOT NULL UNIQUE,
   created_date TIMESTAMP NOT NULL,
-  expiration_date TIMESTAMP -- METADATA END --
+  expiration_date TIMESTAMP,
+  hash SHA256HASH NOT NULL -- METADATA END --
 );

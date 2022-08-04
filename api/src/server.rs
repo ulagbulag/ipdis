@@ -64,9 +64,9 @@ impl IpdisServer {
         let sign_as_guarantee = req.__sign.into_owned().await?;
 
         // ensure registered
-        let guarantee = &sign_as_guarantee.guarantee.account;
+        let guarantee = &sign_as_guarantee.metadata.guarantee.account;
         client
-            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
+            .ensure_registered(guarantee, &sign_as_guarantee.metadata.guarantor)
             .await?;
 
         // handle data
@@ -91,13 +91,13 @@ impl IpdisServer {
         let sign_as_guarantee = req.__sign.into_owned().await?;
 
         // ensure registered
-        let guarantee = &sign_as_guarantee.guarantee.account;
+        let guarantee = &sign_as_guarantee.metadata.guarantee.account;
         client
-            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
+            .ensure_registered(guarantee, &sign_as_guarantee.metadata.guarantor)
             .await?;
 
         // unpack data
-        let path = sign_as_guarantee.data.data;
+        let path = sign_as_guarantee.data;
 
         // handle data
         let path = client
@@ -124,9 +124,9 @@ impl IpdisServer {
         let sign_as_guarantee = req.__sign.into_owned().await?;
 
         // ensure registered
-        let guarantee = &sign_as_guarantee.guarantee.account;
+        let guarantee = &sign_as_guarantee.metadata.guarantee.account;
         client
-            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
+            .ensure_registered(guarantee, &sign_as_guarantee.metadata.guarantor)
             .await?;
 
         // handle data
@@ -151,13 +151,13 @@ impl IpdisServer {
         let sign_as_guarantee = req.__sign.into_owned().await?;
 
         // ensure registered
-        let guarantee = &sign_as_guarantee.guarantee.account;
+        let guarantee = &sign_as_guarantee.metadata.guarantee.account;
         client
-            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
+            .ensure_registered(guarantee, &sign_as_guarantee.metadata.guarantor)
             .await?;
 
         // unpack data
-        let query = sign_as_guarantee.data.data;
+        let query = sign_as_guarantee.data;
 
         // handle data
         let words = client
@@ -184,13 +184,13 @@ impl IpdisServer {
         let sign_as_guarantee = req.__sign.into_owned().await?;
 
         // ensure registered
-        let guarantee = &sign_as_guarantee.guarantee.account;
+        let guarantee = &sign_as_guarantee.metadata.guarantee.account;
         client
-            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
+            .ensure_registered(guarantee, &sign_as_guarantee.metadata.guarantor)
             .await?;
 
         // unpack data
-        let query = sign_as_guarantee.data.data;
+        let query = sign_as_guarantee.data;
 
         // handle data
         let counts = client
@@ -217,9 +217,9 @@ impl IpdisServer {
         let sign_as_guarantee = req.__sign.into_owned().await?;
 
         // ensure registered
-        let guarantee = &sign_as_guarantee.guarantee.account;
+        let guarantee = &sign_as_guarantee.metadata.guarantee.account;
         client
-            .ensure_registered(guarantee, &sign_as_guarantee.guarantor)
+            .ensure_registered(guarantee, &sign_as_guarantee.metadata.guarantor)
             .await?;
 
         // unpack data

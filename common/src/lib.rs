@@ -5,6 +5,7 @@ use ipis::{
     core::{
         account::{AccountRef, GuaranteeSigned, GuarantorSigned},
         anyhow::{bail, Result},
+        data::Data,
         signed::IsSigned,
         value::hash::Hash,
     },
@@ -18,26 +19,29 @@ pub trait Ipdis {
     async fn ensure_registered(&self, guarantee: &AccountRef, guarantor: &AccountRef)
         -> Result<()>;
 
-    async fn add_guarantee(&self, target: &GuaranteeSigned<AccountRef>) -> Result<()> {
-        let guarantee = &target.guarantee.account;
-        let guarantor = &target.data.guarantor;
+    async fn add_guarantee(&self, target: &Data<GuaranteeSigned, AccountRef>) -> Result<()> {
+        let guarantee = &target.metadata.guarantee.account;
+        let guarantor = &target.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantee).await?;
         self.ensure_registered(guarantee, guarantor).await?;
 
         self.add_guarantee_unchecked(target).await
     }
 
-    async fn add_guarantee_unchecked(&self, guarantee: &GuaranteeSigned<AccountRef>) -> Result<()>;
+    async fn add_guarantee_unchecked(
+        &self,
+        guarantee: &Data<GuaranteeSigned, AccountRef>,
+    ) -> Result<()>;
 
     async fn get_dyn_path<Path>(
         &self,
-        path: &GuaranteeSigned<DynPath<Path>>,
-    ) -> Result<Option<GuarantorSigned<DynPath<::ipis::path::Path>>>>
+        path: &Data<GuaranteeSigned, DynPath<Path>>,
+    ) -> Result<Option<Data<GuarantorSigned, DynPath<::ipis::path::Path>>>>
     where
         Path: Copy + Send + Sync,
     {
-        let guarantee = &path.guarantee.account;
-        let guarantor = &path.data.guarantor;
+        let guarantee = &path.metadata.guarantee.account;
+        let guarantor = &path.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
         self.get_dyn_path_unchecked(Some(guarantee), &path.data)
@@ -48,26 +52,29 @@ pub trait Ipdis {
         &self,
         guarantee: Option<&AccountRef>,
         path: &DynPath<Path>,
-    ) -> Result<Option<GuarantorSigned<DynPath<::ipis::path::Path>>>>
+    ) -> Result<Option<Data<GuarantorSigned, DynPath<::ipis::path::Path>>>>
     where
         Path: Copy + Send + Sync;
 
-    async fn put_dyn_path(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()> {
-        let guarantee = &path.guarantee.account;
-        let guarantor = &path.data.guarantor;
+    async fn put_dyn_path(&self, path: &Data<GuaranteeSigned, DynPath<Path>>) -> Result<()> {
+        let guarantee = &path.metadata.guarantee.account;
+        let guarantor = &path.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
         self.put_dyn_path_unchecked(path).await
     }
 
-    async fn put_dyn_path_unchecked(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()>;
+    async fn put_dyn_path_unchecked(
+        &self,
+        path: &Data<GuaranteeSigned, DynPath<Path>>,
+    ) -> Result<()>;
 
     async fn get_word_latest(
         &self,
-        word: &GuaranteeSigned<WordKeyHash>,
-    ) -> Result<Option<GuarantorSigned<WordHash>>> {
-        let guarantee = &word.guarantee.account;
-        let guarantor = &word.data.guarantor;
+        word: &Data<GuaranteeSigned, WordKeyHash>,
+    ) -> Result<Option<Data<GuarantorSigned, WordHash>>> {
+        let guarantee = &word.metadata.guarantee.account;
+        let guarantor = &word.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
         self.get_word_latest_unchecked(Some(guarantee), &word.data)
@@ -78,7 +85,7 @@ pub trait Ipdis {
         &self,
         guarantee: Option<&AccountRef>,
         word: &WordKeyHash,
-    ) -> Result<Option<GuarantorSigned<WordHash>>> {
+    ) -> Result<Option<Data<GuarantorSigned, WordHash>>> {
         let query = GetWords {
             word: *word,
             parent: GetWordsParent::None,
@@ -93,10 +100,10 @@ pub trait Ipdis {
 
     async fn get_word_many(
         &self,
-        query: &GuaranteeSigned<GetWords>,
-    ) -> Result<Vec<GuarantorSigned<WordHash>>> {
-        let guarantee = &query.guarantee.account;
-        let guarantor = &query.data.guarantor;
+        query: &Data<GuaranteeSigned, GetWords>,
+    ) -> Result<Vec<Data<GuarantorSigned, WordHash>>> {
+        let guarantee = &query.metadata.guarantee.account;
+        let guarantor = &query.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
         self.get_word_many_unchecked(Some(guarantee), &query.data)
@@ -107,15 +114,15 @@ pub trait Ipdis {
         &self,
         guarantee: Option<&AccountRef>,
         query: &GetWords,
-    ) -> Result<Vec<GuarantorSigned<WordHash>>>;
+    ) -> Result<Vec<Data<GuarantorSigned, WordHash>>>;
 
     async fn get_word_count(
         &self,
-        word: &GuaranteeSigned<WordKeyHash>,
+        word: &Data<GuaranteeSigned, WordKeyHash>,
         owned: bool,
     ) -> Result<u32> {
-        let guarantee = &word.guarantee.account;
-        let guarantor = &word.data.guarantor;
+        let guarantee = &word.metadata.guarantee.account;
+        let guarantor = &word.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
         self.get_word_count_unchecked(Some(guarantee), &word.data, owned)
@@ -143,10 +150,10 @@ pub trait Ipdis {
 
     async fn get_word_count_many(
         &self,
-        query: &GuaranteeSigned<GetWordsCounts>,
+        query: &Data<GuaranteeSigned, GetWordsCounts>,
     ) -> Result<Vec<GetWordsCountsOutput>> {
-        let guarantee = &query.guarantee.account;
-        let guarantor = &query.data.guarantor;
+        let guarantee = &query.metadata.guarantee.account;
+        let guarantor = &query.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
         self.get_word_count_many_unchecked(Some(guarantee), &query.data)
@@ -159,9 +166,9 @@ pub trait Ipdis {
         query: &GetWordsCounts,
     ) -> Result<Vec<GetWordsCountsOutput>>;
 
-    async fn put_word(&self, parent: &Hash, word: &GuaranteeSigned<WordHash>) -> Result<()> {
-        let guarantee = &word.guarantee.account;
-        let guarantor = &word.data.guarantor;
+    async fn put_word(&self, parent: &Hash, word: &Data<GuaranteeSigned, WordHash>) -> Result<()> {
+        let guarantee = &word.metadata.guarantee.account;
+        let guarantor = &word.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantor).await?;
 
         self.put_word_unchecked(parent, word).await
@@ -170,7 +177,7 @@ pub trait Ipdis {
     async fn put_word_unchecked(
         &self,
         parent: &Hash,
-        word: &GuaranteeSigned<WordHash>,
+        word: &Data<GuaranteeSigned, WordHash>,
     ) -> Result<()>;
 }
 
@@ -192,7 +199,10 @@ where
         Ok(())
     }
 
-    async fn add_guarantee_unchecked(&self, guarantee: &GuaranteeSigned<AccountRef>) -> Result<()> {
+    async fn add_guarantee_unchecked(
+        &self,
+        guarantee: &Data<GuaranteeSigned, AccountRef>,
+    ) -> Result<()> {
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
@@ -214,7 +224,7 @@ where
         &self,
         _guarantee: Option<&AccountRef>,
         path: &DynPath<Path>,
-    ) -> Result<Option<GuarantorSigned<DynPath<::ipis::path::Path>>>>
+    ) -> Result<Option<Data<GuarantorSigned, DynPath<::ipis::path::Path>>>>
     where
         Path: Copy + Send + Sync,
     {
@@ -226,7 +236,7 @@ where
             client: self,
             target: KIND.as_ref() => &target,
             request: crate::io => DynPathGet,
-            sign: self.sign(target, (*path).remove_path())?,
+            sign: self.sign_owned(target, (*path).remove_path())?,
             inputs: { },
             outputs: { path, },
         );
@@ -235,7 +245,10 @@ where
         Ok(path)
     }
 
-    async fn put_dyn_path_unchecked(&self, path: &GuaranteeSigned<DynPath<Path>>) -> Result<()> {
+    async fn put_dyn_path_unchecked(
+        &self,
+        path: &Data<GuaranteeSigned, DynPath<Path>>,
+    ) -> Result<()> {
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
@@ -257,7 +270,7 @@ where
         &self,
         _guarantee: Option<&AccountRef>,
         query: &GetWords,
-    ) -> Result<Vec<GuarantorSigned<WordHash>>> {
+    ) -> Result<Vec<Data<GuarantorSigned, WordHash>>> {
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
 
@@ -266,7 +279,7 @@ where
             client: self,
             target: KIND.as_ref() => &target,
             request: crate::io => WordGetMany,
-            sign: self.sign(target, *query)?,
+            sign: self.sign_owned(target, *query)?,
             inputs: { },
             outputs: { words, },
         );
@@ -288,7 +301,7 @@ where
             client: self,
             target: KIND.as_ref() => &target,
             request: crate::io => WordCountGetMany,
-            sign: self.sign(target, *query)?,
+            sign: self.sign_owned(target, *query)?,
             inputs: { },
             outputs: { counts, },
         );
@@ -300,7 +313,7 @@ where
     async fn put_word_unchecked(
         &self,
         parent: &Hash,
-        word: &GuaranteeSigned<WordHash>,
+        word: &Data<GuaranteeSigned, WordHash>,
     ) -> Result<()> {
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
@@ -325,52 +338,52 @@ where
 define_io! {
     GuaranteePut {
         inputs: { },
-        input_sign: GuaranteeSigned<AccountRef>,
+        input_sign: Data<GuaranteeSigned, AccountRef>,
         outputs: { },
-        output_sign: GuarantorSigned<AccountRef>,
+        output_sign: Data<GuarantorSigned, AccountRef>,
         generics: { },
     },
     DynPathGet {
         inputs: { },
-        input_sign: GuaranteeSigned<DynPath<()>>,
+        input_sign: Data<GuaranteeSigned, DynPath<()>>,
         outputs: {
-            path: Option<GuarantorSigned<DynPath<Path>>>,
+            path: Option<Data<GuarantorSigned, DynPath<Path>>>,
         },
-        output_sign: GuarantorSigned<DynPath<()>>,
+        output_sign: Data<GuarantorSigned, DynPath<()>>,
         generics: { },
     },
     DynPathPut {
         inputs: { },
-        input_sign: GuaranteeSigned<DynPath<Path>>,
+        input_sign: Data<GuaranteeSigned, DynPath<Path>>,
         outputs: { },
-        output_sign: GuarantorSigned<DynPath<Path>>,
+        output_sign: Data<GuarantorSigned, DynPath<Path>>,
         generics: { },
     },
     WordGetMany {
         inputs: { },
-        input_sign: GuaranteeSigned<GetWords>,
+        input_sign: Data<GuaranteeSigned, GetWords>,
         outputs: {
-            words: Vec<GuarantorSigned<WordHash>>,
+            words: Vec<Data<GuarantorSigned, WordHash>>,
         },
-        output_sign: GuarantorSigned<GetWords>,
+        output_sign: Data<GuarantorSigned, GetWords>,
         generics: { },
     },
     WordPut {
         inputs: {
             parent: Hash,
         },
-        input_sign: GuaranteeSigned<WordHash>,
+        input_sign: Data<GuaranteeSigned, WordHash>,
         outputs: { },
-        output_sign: GuarantorSigned<WordHash>,
+        output_sign: Data<GuarantorSigned, WordHash>,
         generics: { },
     },
     WordCountGetMany {
         inputs: { },
-        input_sign: GuaranteeSigned<GetWordsCounts>,
+        input_sign: Data<GuaranteeSigned, GetWordsCounts>,
         outputs: {
             counts: Vec<GetWordsCountsOutput>,
         },
-        output_sign: GuarantorSigned<GetWordsCounts>,
+        output_sign: Data<GuarantorSigned, GetWordsCounts>,
         generics: { },
     },
 }

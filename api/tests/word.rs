@@ -56,7 +56,7 @@ async fn test_create() {
     let count = 3u32;
     for _ in 0..count {
         // sign as guarantee
-        let word = ipiis.sign(*account, word).unwrap();
+        let word = ipiis.sign_owned(*account, word).unwrap();
 
         // put the word in IPDIS
         client.put_word_unchecked(&parent, &word).await.unwrap();
@@ -68,7 +68,7 @@ async fn test_create() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(&word_from_ipdis.data.data.data, &word);
+    assert_eq!(&word_from_ipdis.data, &word);
 
     // get the parent's words
     let words_from_ipdis = client
@@ -83,7 +83,7 @@ async fn test_create() {
         )
         .await
         .unwrap();
-    assert_eq!(&words_from_ipdis[0].data.data.data, &word);
+    assert_eq!(&words_from_ipdis[0].data, &word);
 
     // get the word counts
     let count_from_ipdis = client

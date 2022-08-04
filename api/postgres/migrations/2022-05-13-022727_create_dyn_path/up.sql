@@ -9,6 +9,7 @@ CREATE TABLE dyn_paths (
   guarantor_signature SIGNATURE NOT NULL UNIQUE,
   created_date TIMESTAMP NOT NULL,
   expiration_date TIMESTAMP,
+  hash SHA256HASH NOT NULL,
   -- METADATA END --
   namespace SHA256HASH NOT NULL,
   kind SHA256HASH NOT NULL,
