@@ -30,7 +30,7 @@ async fn test_create() {
         kind: kind.to_string(),
         relpath: true,
         path: Path {
-            value: "Gx1fwyQphUwVU5E2HRbx7H6t7QVZ8XsMzrFz6TnyxaC1"
+            value: "bafkreihm64a7oj6z4llxysvetldpxpgjs4tyvsqbbpo65olbyegpktkdli"
                 .parse()
                 .unwrap(),
             len: 13,

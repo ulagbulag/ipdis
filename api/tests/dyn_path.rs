@@ -17,7 +17,7 @@ async fn test_create() {
 
     // create a static path to be stored
     let path = Path {
-        value: "FjL3dTmyrudvLxFcezJ7b3oGq7Q48ZUS8HH5e4wajVL7"
+        value: "bafybeie52ly6uafpr4h3ih24mqa4twtojppo6366kyi74ejtd4sxv2fezm"
             .parse()
             .unwrap(),
         len: 496_300_196,
