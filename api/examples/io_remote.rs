@@ -10,7 +10,7 @@ use ipis::{
         anyhow::Result,
         value::{hash::Hash, text::Text},
     },
-    env::Infer,
+    env::{infer, Infer},
     path::Path,
     tokio,
     word::{Word, WordHash, WordKey},
@@ -19,7 +19,7 @@ use ipis::{
 #[tokio::main]
 async fn main() -> Result<()> {
     // deploy a server
-    let server = IpdisServer::genesis(5001).await?;
+    let server = IpdisServer::genesis(9801).await?;
     let server_account = {
         let server: &IpiisServer = server.as_ref();
         let account = unsafe { server.account_me()? };
@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
         .set_account_primary(KIND.as_ref(), &server_account)
         .await?;
     client
-        .set_address(KIND.as_ref(), &server_account, &"127.0.0.1:5001".parse()?)
+        .set_address(KIND.as_ref(), &server_account, &infer("ipiis_client_account_primary_address")?)
         .await?;
 
     // cleanup client registration
