@@ -25,16 +25,25 @@ FROM docker.io/rust:1-alpine${ALPINE_VERSION} as builder
 # Install dependencies
 RUN apk add --no-cache libpq-dev musl-dev
 
-# Load source files
-ADD . /src
-WORKDIR /src
-
 # Load environment variables
 ARG API_FEATURES
 ARG PACKAGE
 
+# Install rust dependencies
+RUN mkdir -p /out /plugins \
+    && cargo install --no-default-features --features "$API_FEATURES" --root /plugins diesel_cli \
+    && mv /plugins/bin/* /out \
+    && rm -rf /plugins
+
+# Load source files
+ADD . /src
+WORKDIR /src
+
 # Build it!
-RUN mkdir /out \
+RUN mkdir -p /out \
+    # Copy SQL migration files
+    && mkdir -p /out/postgres \
+    && cp -r ./api/postgres/diesel.toml ./api/postgres/migrations /out/postgres \
     # disable default API features
     && sed -i 's/^\(default = \)\[.*\]/\1\[\]/g' ./api/Cargo.toml \
     # build packages

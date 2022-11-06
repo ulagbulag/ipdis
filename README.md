@@ -2,6 +2,8 @@
 
 ## Dependencies
 
+* diesel_cli
+    - Rust (Cargo) + postgresql: `cargo install diesel_cli --no-default-features --features postgres`
 * postgresql
     - Ubuntu: `libpq-dev`
 
