@@ -1,4 +1,6 @@
-table! {
+// @generated automatically by Diesel CLI.
+
+diesel::table! {
     accounts_guarantees (id) {
         id -> Int4,
         nonce -> Uuid,
@@ -12,7 +14,7 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     dyn_paths (id) {
         id -> Int4,
         nonce -> Uuid,
@@ -31,7 +33,7 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     words (id) {
         id -> Int4,
         nonce -> Uuid,
@@ -53,7 +55,7 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     words_counts (id) {
         id -> Int4,
         namespace -> Varchar,
@@ -65,7 +67,7 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     words_counts_guarantees (id) {
         id -> Int4,
         guarantee -> Varchar,
@@ -78,7 +80,7 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(
+diesel::allow_tables_to_appear_in_same_query!(
     accounts_guarantees,
     dyn_paths,
     words,
