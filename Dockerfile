@@ -29,6 +29,9 @@ RUN apk add --no-cache libpq-dev musl-dev
 ARG API_FEATURES
 ARG PACKAGE
 
+# Set build environment variables
+ENV RUSTFLAGS="-C target-feature=-crt-static"
+
 # Install rust dependencies
 RUN mkdir -p /out /plugins \
     && cargo install --no-default-features --features "$API_FEATURES" --root /plugins diesel_cli \
@@ -40,10 +43,10 @@ ADD . /src
 WORKDIR /src
 
 # Build it!
-RUN mkdir -p /out \
+RUN mkdir -p /out /sql \
     # Copy SQL migration files
-    && mkdir -p /out/postgres \
-    && cp -r ./api/postgres/diesel.toml ./api/postgres/migrations /out/postgres \
+    && mkdir -p /sql/postgres \
+    && cp -r ./api/postgres/diesel.toml ./api/postgres/migrations /sql/postgres \
     # disable default API features
     && sed -i 's/^\(default = \)\[.*\]/\1\[\]/g' ./api/Cargo.toml \
     # build packages
@@ -56,4 +59,5 @@ RUN mkdir -p /out \
 # Copy executable files
 FROM server
 COPY --from=builder /out/* /usr/local/bin/
+COPY --from=builder /sql /sql
 COPY --from=builder /LICENSE-* /usr/share/licenses/${PACKAGE}/
