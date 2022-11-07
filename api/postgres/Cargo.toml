@@ -20,4 +20,9 @@ ipis = { git = "https://github.com/ulagbulag-village/ipis", features = [
 ipdis-common = { path = "../../common" }
 ipiis-api = { git = "https://github.com/ulagbulag-village/ipiis.git" }
 
-diesel = { version = "2.0.0-rc.0", features = ["chrono", "postgres", "uuid"] }
+diesel = { version = "2.0.0-rc.0", features = [
+    "chrono",
+    "postgres",
+    "r2d2",
+    "uuid",
+] }

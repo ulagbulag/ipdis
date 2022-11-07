@@ -1,6 +1,7 @@
 use diesel::{
-    dsl::now, BoolExpressionMethods, Connection, ExpressionMethods, PgConnection, QueryDsl,
-    RunQueryDsl,
+    dsl::now,
+    r2d2::{ConnectionManager, Pool},
+    BoolExpressionMethods, Connection, ExpressionMethods, PgConnection, QueryDsl, RunQueryDsl,
 };
 use ipdis_common::{
     GetWordKeyHash, GetWords, GetWordsCounts, GetWordsCountsOutput, GetWordsParent, Ipdis,
@@ -17,7 +18,6 @@ use ipis::{
     },
     env::{self, Infer},
     path::{DynPath, Path},
-    tokio::sync::Mutex,
     word::{WordHash, WordKeyHash},
 };
 
@@ -25,7 +25,7 @@ pub type IpdisClient = IpdisClientInner<::ipiis_api::client::IpiisClient>;
 
 pub struct IpdisClientInner<IpiisClient> {
     pub ipiis: IpiisClient,
-    connection: Mutex<PgConnection>,
+    connection: Pool<ConnectionManager<PgConnection>>,
 }
 
 impl<IpiisClient> AsRef<::ipiis_api::client::IpiisClient> for IpdisClientInner<IpiisClient>
@@ -80,9 +80,10 @@ impl<IpiisClient> IpdisClientInner<IpiisClient> {
 
         Ok(Self {
             ipiis,
-            connection: PgConnection::establish(&database_url)
-                .or_else(|_| bail!("Error connecting to {database_url}"))?
-                .into(),
+            connection: Pool::builder()
+                .test_on_check_out(true)
+                .build(ConnectionManager::<PgConnection>::new(&database_url))
+                .or_else(|_| bail!("Error connecting to {database_url}"))?,
         })
     }
 }
@@ -116,7 +117,7 @@ where
                     .ge(now)
                     .or(crate::schema::accounts_guarantees::expiration_date.is_null()),
             )
-            .execute(&mut *self.connection.lock().await)
+            .execute(&mut self.connection.get()?)
             .map_err(Into::into)
             .and_then(|count| {
                 if count > 0 {
@@ -146,7 +147,7 @@ where
 
         ::diesel::insert_into(crate::schema::accounts_guarantees::table)
             .values(&record)
-            .execute(&mut *self.connection.lock().await)
+            .execute(&mut self.connection.get()?)
             .map(|_| ())
             .map_err(Into::into)
     }
@@ -175,7 +176,7 @@ where
             .filter(crate::schema::dyn_paths::namespace.eq(path.namespace.to_string()))
             .filter(crate::schema::dyn_paths::kind.eq(path.kind.to_string()))
             .filter(crate::schema::dyn_paths::word.eq(path.word.to_string()))
-            .get_results(&mut *self.connection.lock().await)?;
+            .get_results(&mut self.connection.get()?)?;
 
         match records.pop() {
             Some(record) => Ok(Some(Data {
@@ -242,7 +243,7 @@ where
 
         ::diesel::insert_into(crate::schema::dyn_paths::table)
             .values(&record)
-            .execute(&mut *self.connection.lock().await)
+            .execute(&mut self.connection.get()?)
             .map(|_| ())
             .map_err(Into::into)
     }
@@ -277,10 +278,10 @@ where
         let records: Vec<crate::models::words::Word> = match query.parent {
             GetWordsParent::None => sql
                 .filter(crate::schema::words::word.eq(query.word.text.msg.to_string()))
-                .get_results(&mut *self.connection.lock().await)?,
+                .get_results(&mut self.connection.get()?)?,
             GetWordsParent::Duplicated => sql
                 .filter(crate::schema::words::parent.eq(query.word.text.msg.to_string()))
-                .get_results(&mut *self.connection.lock().await)?,
+                .get_results(&mut self.connection.get()?)?,
         };
 
         records
@@ -367,7 +368,7 @@ where
                         .msg
                         .to_string()),
                 )
-                .get_results(&mut *self.connection.lock().await)?
+                .get_results(&mut self.connection.get()?)?
             } else {
                 sql.filter(
                     crate::schema::words_counts_guarantees::word.eq(query
@@ -376,7 +377,7 @@ where
                         .msg
                         .to_string()),
                 )
-                .get_results(&mut *self.connection.lock().await)?
+                .get_results(&mut self.connection.get()?)?
             };
 
             records
@@ -408,10 +409,10 @@ where
 
             let records: Vec<crate::models::words::WordCount> = if query.parent {
                 sql.filter(crate::schema::words_counts::parent.eq(query.word.text.msg.to_string()))
-                    .get_results(&mut *self.connection.lock().await)?
+                    .get_results(&mut self.connection.get()?)?
             } else {
                 sql.filter(crate::schema::words_counts::word.eq(query.word.text.msg.to_string()))
-                    .get_results(&mut *self.connection.lock().await)?
+                    .get_results(&mut self.connection.get()?)?
             };
 
             records
@@ -462,8 +463,7 @@ where
         };
 
         self.connection
-            .lock()
-            .await
+            .get()?
             .transaction::<(), ::diesel::result::Error, _>(|conn| {
                 // insert the word record
                 ::diesel::insert_into(crate::schema::words::table)
@@ -556,7 +556,7 @@ where
     pub async fn delete_guarantee_unchecked(&self, guarantee: &AccountRef) -> Result<()> {
         ::diesel::delete(crate::schema::accounts_guarantees::table)
             .filter(crate::schema::accounts_guarantees::guarantee.eq(guarantee.to_string()))
-            .execute(&mut *self.connection.lock().await)
+            .execute(&mut self.connection.get()?)
             .map(|_| ())
             .map_err(Into::into)
     }
@@ -564,15 +564,14 @@ where
     pub async fn delete_dyn_path_all_unchecked(&self, namespace: &Hash) -> Result<()> {
         ::diesel::delete(crate::schema::dyn_paths::table)
             .filter(crate::schema::dyn_paths::namespace.eq(namespace.to_string()))
-            .execute(&mut *self.connection.lock().await)
+            .execute(&mut self.connection.get()?)
             .map(|_| ())
             .map_err(Into::into)
     }
 
     pub async fn delete_word_all_unchecked(&self, namespace: &Hash) -> Result<()> {
         self.connection
-            .lock()
-            .await
+            .get()?
             .transaction::<(), ::diesel::result::Error, _>(|conn| {
                 ::diesel::delete(crate::schema::words::table)
                     .filter(crate::schema::words::namespace.eq(namespace.to_string()))
