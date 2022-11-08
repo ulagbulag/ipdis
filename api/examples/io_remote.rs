@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
             .sign_as_guarantor(client.sign_owned(server_account, *client_account)?)?;
 
         // only the guarantee can perform it
-        client.add_guarantee_unchecked(&guarantee).await?;
+        client.add_guarantee(&guarantee).await?;
     };
 
     // create a sample word to be stored
