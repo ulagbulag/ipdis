@@ -1,4 +1,4 @@
 [workspace]
 resolver = "2"
-members = ["api", "api/postgres", "common", "pallet", "runtime"]
+members = ["api", "api/postgres", "common", "modules/cli", "pallet", "runtime"]
 default-members = ["runtime"]
