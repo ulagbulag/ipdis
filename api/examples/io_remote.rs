@@ -19,7 +19,10 @@ use ipis::{
 #[tokio::main]
 async fn main() -> Result<()> {
     // deploy a server
-    let server = IpdisServer::genesis(9801).await?;
+    let server = {
+        ::std::env::set_var("ipiis_router_db", "/tmp/ipdis-example-server-ipiis-rarp-db");
+        IpdisServer::genesis(9801).await?
+    };
     let server_account = {
         let server: &IpiisServer = server.as_ref();
         let account = unsafe { server.account_me()? };
@@ -32,16 +35,32 @@ async fn main() -> Result<()> {
     tokio::spawn(async move { server.run().await });
 
     // create a guarantor client
-    let client_guarantor = IpdisClient::infer().await;
+    let client_guarantor = {
+        ::std::env::set_var(
+            "ipiis_router_db",
+            "/tmp/ipdis-example-client-guarantor-ipiis-rarp-db",
+        );
+        IpdisClient::infer().await
+    };
 
     // create a client
-    let client = IpiisClient::genesis(None).await?;
+    let client = {
+        ::std::env::set_var(
+            "ipiis_router_db",
+            "/tmp/ipdis-example-client-guarantee-ipiis-rarp-db",
+        );
+        IpiisClient::genesis(None).await?
+    };
     let client_account = client.account_ref();
     client
         .set_account_primary(KIND.as_ref(), &server_account)
         .await?;
     client
-        .set_address(KIND.as_ref(), &server_account, &infer("ipiis_client_account_primary_address")?)
+        .set_address(
+            KIND.as_ref(),
+            &server_account,
+            &infer("ipiis_client_account_primary_address")?,
+        )
         .await?;
 
     // cleanup client registration
