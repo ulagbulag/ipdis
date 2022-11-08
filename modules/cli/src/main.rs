@@ -16,6 +16,7 @@ async fn main() -> Result<()> {
     let args = args::Args::parse();
 
     // init client
+    env::set_var("ipiis_router_db", "/tmp/ipdis-modules-cli-ipiis-router-db");
     let client = IpiisClient::try_infer().await?;
 
     // execute a command
@@ -35,20 +36,9 @@ async fn main() -> Result<()> {
             };
 
             // add the primary address
-            {
-                server
-                    .set_address(
-                        KIND.as_ref(),
-                        server.account_ref(),
-                        &client
-                            .get_address(KIND.as_ref(), server.account_ref())
-                            .await?,
-                    )
-                    .await?;
-                server
-                    .set_account_primary(KIND.as_ref(), server.account_ref())
-                    .await?;
-            }
+            client
+                .set_account_primary(KIND.as_ref(), server.account_ref())
+                .await?;
 
             // sign as guarantor
             let guarantee = server.sign_as_guarantor(
@@ -56,7 +46,7 @@ async fn main() -> Result<()> {
             )?;
 
             // external call
-            server.add_guarantee_unchecked(&guarantee).await
+            client.add_guarantee_unchecked(&guarantee).await
         }
     }
 }
