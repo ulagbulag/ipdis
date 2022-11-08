@@ -11,7 +11,7 @@ use ipis::{
         value::{hash::Hash, text::Text},
     },
     env::{infer, Infer},
-    path::Path,
+    path::{DynPath, Path},
     tokio,
     word::{Word, WordHash, WordKey},
 };
@@ -104,11 +104,28 @@ async fn main() -> Result<()> {
         word
     };
 
+    // create a sample dynamic path to be stored
+    let dyn_path = DynPath {
+        namespace: word.key.namespace.clone(),
+        kind: word.kind.clone(),
+        word: word.key.text.msg.clone(),
+        path: word.path.clone(),
+    };
+
     // cleanup test data
     client_guarantor
         .delete_word_all_unchecked(&word.key.namespace)
         .await
         .unwrap();
+
+    // put the dynamic path
+    client
+        .put_dyn_path_unchecked(&client.sign_owned(server_account, dyn_path)?)
+        .await?;
+
+    // get the dynamic path
+    let dyn_path_from_ipdis = client.get_dyn_path_unchecked(None, &dyn_path).await?;
+    assert_eq!(&dyn_path_from_ipdis.unwrap().data, &dyn_path);
 
     // put the word in IPDIS (* 3 times)
     let count = 3u32;
