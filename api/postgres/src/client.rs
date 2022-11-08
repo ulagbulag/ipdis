@@ -130,10 +130,8 @@ where
 
     async fn add_guarantee_unchecked(
         &self,
-        guarantee: &Data<GuaranteeSigned, AccountRef>,
+        guarantee: &Data<GuarantorSigned, AccountRef>,
     ) -> Result<()> {
-        let guarantee = self.ipiis.sign_as_guarantor(*guarantee)?;
-
         let record = crate::models::accounts_guarantees::NewAccountsGuarantee {
             nonce: guarantee.metadata.nonce.0 .0,
             guarantee: guarantee.metadata.guarantee.account.to_string(),

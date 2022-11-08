@@ -19,7 +19,7 @@ pub trait Ipdis {
     async fn ensure_registered(&self, guarantee: &AccountRef, guarantor: &AccountRef)
         -> Result<()>;
 
-    async fn add_guarantee(&self, target: &Data<GuaranteeSigned, AccountRef>) -> Result<()> {
+    async fn add_guarantee(&self, target: &Data<GuarantorSigned, AccountRef>) -> Result<()> {
         let guarantee = &target.metadata.guarantee.account;
         let guarantor = &target.metadata.data.guarantor;
         self.ensure_registered(guarantee, guarantee).await?;
@@ -30,7 +30,7 @@ pub trait Ipdis {
 
     async fn add_guarantee_unchecked(
         &self,
-        guarantee: &Data<GuaranteeSigned, AccountRef>,
+        guarantee: &Data<GuarantorSigned, AccountRef>,
     ) -> Result<()>;
 
     async fn get_dyn_path<Path>(
@@ -201,7 +201,7 @@ where
 
     async fn add_guarantee_unchecked(
         &self,
-        guarantee: &Data<GuaranteeSigned, AccountRef>,
+        guarantee: &Data<GuarantorSigned, AccountRef>,
     ) -> Result<()> {
         // next target
         let target = self.get_account_primary(KIND.as_ref()).await?;
@@ -211,7 +211,7 @@ where
             client: self,
             target: KIND.as_ref() => &target,
             request: crate::io => GuaranteePut,
-            sign: *guarantee,
+            sign: self.sign_owned(target, *guarantee)?,
             inputs: { },
             outputs: { },
         );
@@ -338,9 +338,9 @@ where
 define_io! {
     GuaranteePut {
         inputs: { },
-        input_sign: Data<GuaranteeSigned, AccountRef>,
+        input_sign: Data<GuaranteeSigned, Data<GuarantorSigned, AccountRef>>,
         outputs: { },
-        output_sign: Data<GuarantorSigned, AccountRef>,
+        output_sign: Data<GuarantorSigned, Data<GuarantorSigned, AccountRef>>,
         generics: { },
     },
     DynPathGet {

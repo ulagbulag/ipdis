@@ -6,7 +6,11 @@ use ipiis_api::{
     common::{handle_external_call, Ipiis, ServerResult},
     server::IpiisServer,
 };
-use ipis::{async_trait::async_trait, core::anyhow::Result, env::Infer};
+use ipis::{
+    async_trait::async_trait,
+    core::anyhow::{bail, Result},
+    env::Infer,
+};
 
 use crate::client::IpdisClientInner;
 
@@ -62,15 +66,26 @@ impl IpdisServer {
     ) -> Result<::ipdis_common::io::response::GuaranteePut<'static>> {
         // unpack sign
         let sign_as_guarantee = req.__sign.into_owned().await?;
+        let sign_as_guarantor = &sign_as_guarantee.data;
 
-        // ensure registered
-        let guarantee = &sign_as_guarantee.metadata.guarantee.account;
+        // ensure registered (only the guarantor)
+        let guarantor = &sign_as_guarantor.metadata.guarantor.account;
         client
-            .ensure_registered(guarantee, &sign_as_guarantee.metadata.guarantor)
+            .ensure_registered(guarantor, &sign_as_guarantee.metadata.guarantor)
+            .await?;
+        client
+            .ensure_registered(guarantor, &sign_as_guarantor.metadata.guarantor.account)
             .await?;
 
+        // either one can request it
+        if sign_as_guarantee.metadata.guarantee.account
+            != sign_as_guarantor.metadata.guarantee.account
+        {
+            bail!("Only the guarantee can perform it")
+        }
+
         // handle data
-        client.add_guarantee_unchecked(&sign_as_guarantee).await?;
+        client.add_guarantee_unchecked(sign_as_guarantor).await?;
 
         // sign data
         let server: &IpiisServer = client.as_ref();

@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use ipis::core::account::AccountRef;
+use ipis::core::account::Account;
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -12,7 +12,7 @@ pub struct Args {
 pub enum Command {
     AddGuarantee {
         /// Account of the target server
-        #[clap(long, env = "ipiis_client_account")]
-        account: AccountRef,
+        #[clap(long, env = "ipiis_server_account")]
+        guarantor: Account,
     },
 }

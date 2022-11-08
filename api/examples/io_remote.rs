@@ -20,7 +20,10 @@ use ipis::{
 async fn main() -> Result<()> {
     // deploy a server
     let server = {
-        ::std::env::set_var("ipiis_router_db", "/tmp/ipdis-example-server-ipiis-rarp-db");
+        ::std::env::set_var(
+            "ipiis_router_db",
+            "/tmp/ipdis-example-server-ipiis-router-db",
+        );
         IpdisServer::genesis(9801).await?
     };
     let server_account = {
@@ -38,7 +41,7 @@ async fn main() -> Result<()> {
     let client_guarantor = {
         ::std::env::set_var(
             "ipiis_router_db",
-            "/tmp/ipdis-example-client-guarantor-ipiis-rarp-db",
+            "/tmp/ipdis-example-client-guarantor-ipiis-router-db",
         );
         IpdisClient::infer().await
     };
@@ -47,7 +50,7 @@ async fn main() -> Result<()> {
     let client = {
         ::std::env::set_var(
             "ipiis_router_db",
-            "/tmp/ipdis-example-client-guarantee-ipiis-rarp-db",
+            "/tmp/ipdis-example-client-guarantee-ipiis-router-db",
         );
         IpiisClient::genesis(None).await?
     };
@@ -71,9 +74,12 @@ async fn main() -> Result<()> {
     // register the client as guarantee
     {
         // sign as guarantor
-        let guarantee = client.sign_owned(server_account, *client_account)?;
+        let guarantee = client_guarantor
+            .as_ref()
+            .sign_as_guarantor(client.sign_owned(server_account, *client_account)?)?;
 
-        client_guarantor.add_guarantee_unchecked(&guarantee).await?;
+        // only the guarantee can perform it
+        client.add_guarantee_unchecked(&guarantee).await?;
     };
 
     // create a sample word to be stored
